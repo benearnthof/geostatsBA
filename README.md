@@ -1,0 +1,2 @@
+# geostatsBA
+My Bachelor Thesis
