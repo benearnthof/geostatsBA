@@ -154,3 +154,113 @@ plot(vario4, smooth = FALSE)
 
 # more or less horizontal band of points => the model seems to fit the data reasonably well
 # lets start to make inferences based on these results
+
+# Accounting for spatial autocorrelation using the gls function allows us to get 
+# unbiased parameter and uncertainty estimates, the modelled correlation structure
+# however is not directly use when making predictions. If we want to use the extra 
+# information provided by the spatial autocorrelation to make better predictions, 
+# we need more complex models. 
+
+resp <- expm1(predict(m3, newdata = data.frame(elevation = values(elev), x = coordinates(elev)[,1], 
+                                               y = coordinates(elev)[2])))
+resp <- rasterFromXYZ(cbind(coordinates(elev), resp))
+plot(resp, main = "Predicted abundances")
+
+# looks promising so far
+
+# Analysis using ordinary kriging ====
+# (Gaussian process regression or best linear unbiased prediction) 
+# Basic Idea:
+# The value of interest at an unknown point is computed as a weighted average 
+# of the sampled neighbours. The weights are defined by the variogram model. 
+# Ordinary kriging assumes that the data comes from a multivariate normal 
+# distribution => log transform the generated example data
+
+datsp <- sampledata
+coordinates(datsp) <- c("x", "y")
+
+# Sample variogram of the data without covariate
+vario <- variogram(log1p(counts) ~ 1, datsp)
+plot(vario)
+
+# Ordinary kriging only requires the relationship between similarity and distance
+# no covariates are introduced as of yet. This relationship is computed from the 
+# sample variogram. To get predictions we need to fit a theoretical variogram 
+# model to our sample variogram. 
+# Fit a non-linear regression to the variogram using fit.variogram function of 
+# gstat package. The vgm function allows us to specify the theoretical model 
+# => exponential, gaussian, spherical, etc. 
+# and also specify initial values for the variogram parameters.
+
+# Fit theoretical variogram model to our sample variogram
+counts.ivgm <- vgm(model = "Exp", nugget = 0, range = 15, psill = 1)
+counts.vgm <- fit.variogram(vario, model = counts.ivgm)
+counts.vgm
+
+plot(vario, counts.vgm, pch = "+", main = "log1p(counts)", cex = 2)
+
+# lets make predictions using ordinary kriging
+# ~1 indicates ordinary kriging, second argument is SpatialPointsDataFrame containing
+# the locations of the sampled sites with the corresponding values of the response variable
+# third argument is Spatial object => spatial pixels data frame containing the 
+# coordinates of the sites for which we want to have predictions. 
+# last argument is fitted variogram model. 
+
+# krige function returns SpatialPixelsDataFrame with 2 columns 
+# Predictions and prediction variances. 
+# => need to back transform the predictions after the log transform
+
+# Ordinary kriging 
+# crs(datsp) <- crs(elevpx)
+# does not work properly lets ignore crs for now
+crs(datsp) <- NA
+crs(elevpx) <- NA
+counts.ok <- krige(log1p(counts) ~ 1, locations = datsp, newdata = elevpx, model = counts.vgm)
+
+preds <- stack(counts.ok)
+plot(preds, main = c("Ordinary kriging predictions", "Prediction variance"))
+
+# well that looks like shit lmao
+# back transform the predictions
+plot(exp(preds[[1]]) - 1, main = "Back-transformed Predictions")
+
+# at least we tried. 
+# no covariate => predictions are strongly smoothed and most of the time not very accurate
+# => This method does not work well if the distribution of a species is mostly determined 
+# by covariates with sharp boundaries. 
+
+# Analysis using universal kriging (regression kriging) ====
+# (Universal Kriging; Kriging with external drift.)
+# Combines information from the covariates and the residual spatial autocorrelation
+# Also assumes the data is drawn from a multivariate normal distribution. 
+# Model fitting is identical to the GLS with covariates, but prediction is different. 
+
+# Fit a simple linear model
+m <- lm(log1p(counts) ~ elevation + I(elevation^2), data = datsp)
+# Compute the sample variogram of the residuals: residual spatial
+# autocorrelation
+vario.rs <- variogram(residuals(m) ~ 1, datsp)
+
+# Fit a theoretical variogram model to the residuals, and give initial
+# values
+counts.rivgm <- vgm(model = "Exp", nugget = 0, range = 10, psill = 0.5)
+counts.rvgm <- fit.variogram(vario.rs, model = counts.rivgm)
+counts.rvgm
+
+plot(vario.rs, counts.rvgm, pc = "+", main = "Residuals", cex = 2)
+
+# we got the theoretical model describing the residual spatial autocorrelation
+# use krige function with covariates in the formula
+# When using universal kriging the third argument must not only contain the coordinates 
+# of the predicted sites, but also the value of the covariates for these sites. 
+
+# regression-kriging
+names(elevpx@data) <- "elevation"
+counts.uk <- krige(log1p(counts) ~ elevation + I(elevation^2), locations = datsp,
+                   newdata = elevpx, model = counts.rvgm)
+preds <- stack(counts.uk)
+plot(preds, main = c("Universal kriging predictions", "Prediction variance"))
+
+# looks a lot better already!
+plot(exp(preds[[1]]) - 1, main = "Predictions (back-transformed")
+# wow it seems we are able to account for most of the structure in the data!
