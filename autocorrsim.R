@@ -407,4 +407,4 @@ rupperCI <- rasterFromXYZ(cbind(wbdata[, 1:2], upperCI))
 plot(stack(rlowerCI, rupperCI))
 
 # BUGS can onnly utilize about 3GB of RAM, => Alternatives: INLA package or STAN
-# STAN should be very similar to BUGS code
+# STAN should be very similar to BUGS codest
