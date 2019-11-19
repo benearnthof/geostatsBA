@@ -264,3 +264,147 @@ plot(preds, main = c("Universal kriging predictions", "Prediction variance"))
 # looks a lot better already!
 plot(exp(preds[[1]]) - 1, main = "Predictions (back-transformed")
 # wow it seems we are able to account for most of the structure in the data!
+
+# universal kriging is mathematicall equivalent to the following 2-step procedure:
+# First fit a linear model to the data using covariates, then perform ordinary 
+# kriging on the residuals and add the kriged residuals to the predictions of 
+# the linear model. The new predictions are the same as the ones provided
+# by universal kriging. This way of computing universal kriging predictions is 
+# usually called regression kriging. 
+# This has the advantage, that we are able to fit a GLM to our count data, 
+# using for example a poisson distribution; we can then interpolate the GLM 
+# residuals using ordinary kriging and add them to our predictions. 
+# (Add the kriged residuals to the predictions on the link scale and then back-
+# transform the results.) Unfortunately getting the standard errors is more 
+# complicated using this method. 
+# Fitting the variogram by hand can be difficult, especially with multiple possible
+# different models. The automap package provides the very useful autokrige function, 
+# which will fit the most appropriate variogram model (smallest residual sum of squares)
+# and compute predictions using kriging. Most of the time this function will fit more
+# flexible variogram models (Matern models.)
+
+require(automap)
+counts.uk <- autoKrige(log1p(counts) ~ elevation + I(elevation^2), datsp, elevpx)
+plot(counts.uk)
+
+# extract predictions to backtransform
+kpreds <- counts.uk$krige_output
+preds <- stack(kpreds)
+plot(exp(preds[[1]]) - 1, main = "Predictions (back-transformed")
+
+
+# Analysis using Conditional Autoregressive (CAR) models ====
+# Kriging is modelling spatial autocorrelation as a continuous processs. 
+# This is more realistic but can be very computationally expensive, especially 
+# in a bayesian context. One solution to this problem is to model the spatial
+# autocorrelation as a discrete process, and to assume that only the nearest 
+# neighbours are responsible for the residual spatial autocorrelation. 
+require(spdep)
+require(BRugs)
+require(R2WinBUGS)
+require(R2OpenBUGS)
+# prepare data first => use NAs fore response variable at unsurveyed sites. 
+# We don't need the distance matrix here because we assume a discrete process, 
+# but we still need to find the nearest neighbours for each site. 
+
+# resolution of 1 => assume minimal distance of 0 and max. distance of 1.5 for 
+# the 8 pixels around each pixels. 
+
+# Define the sampled sites and add a missing response for the other ones
+wbdata <- fulldata
+wbdata[-sites, "counts"] <- NA
+
+# Compute the neighbourhood data (2nd order: 8 neighbours)
+nb <- spdep::dnearneigh(as.matrix(wbdata[, 1:2]), 0, 1.5)
+table(card(nb))
+# Convert the neighbourhood object in an object usable by WinBUGS
+winnb <- nb2WB(nb)
+
+# define model in the BUGS language
+# Start by defining a standard poisson regression (we are modelling counts) and
+# add a random effect rho_i in the linear predictor. The value of this effect 
+# will be different for each site and is defined by neighbouring sites. 
+
+
+
+# Specify model in BUGS language
+sink("CAR.txt")
+cat("
+model {
+
+  # likelihood
+  for (i in 1:n) {
+    y[i] ~ dpois(lambda[i])
+    log(lambda[i]) <- rho[i] + beta1*x1[i] + beta2*x2[i] + beta0
+  }
+
+  # CAR prior distribution for spatial random effect:
+  rho[1:n] ~ car.normal(adj[], weights[], num[], tauSp)
+
+  # other priors
+  beta0 ~ dnorm(0, 0.01)
+  beta1 ~ dnorm(0, 0.01)
+  beta2 ~ dnorm(0, 0.01)
+  tauSp <- pow(sdSp, -2)
+  sdSp ~ dunif(0, 5)
+}
+
+", fill = TRUE)
+sink()
+
+# prepare the data for WinBUGS and set the different MCMC settings. 
+# Bundle data
+win.data <- list(n = n, y = wbdata$counts, x1 = wbdata$elevation, x2 = (wbdata$elevation)^2, 
+                 num = winnb$num, adj = winnb$adj, weights = winnb$weights)
+# Initial values
+inits <- function() {
+  list(beta0 = runif(1, -3, 3), beta1 = runif(1, -3, 3), beta2 = runif(1, 
+                                                                       -3, 3), rho = rep(0, n))
+}
+# Parameters monitored
+params <- c("beta0", "beta1", "beta2", "tauSp", "lambda", "rho")
+
+# MCMC settings
+ni <- 200
+nt <- 1
+nb <- 100
+nc <- 1
+
+# running the model 
+out <- bugs(data = win.data, inits = inits, parameters.to.save = params, model.file = "CAR.txt", 
+            n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb, 
+            working.directory = getwd(), clearWD = TRUE)
+
+# get posterior means
+means <- c(out$mean$beta0, out$mean$beta1, out$mean$beta2, out$mean$tauSp)
+means
+
+# Store results in raster objects and plot them
+rcar <- rasterFromXYZ(cbind(wbdata[, 1:2], out$mean$lambda))
+rrho <- rasterFromXYZ(cbind(wbdata[, 1:2], out$mean$rho))
+
+plot(stack(rcar, rrho))
+
+# even for just one chain without thinning per parameter the results look 
+# promising already. 
+# Now lets get information about the standard errors 
+# We have the full posterior distribution of the predictions for each site. 
+# lets map the standard deviation of the posterior and 95% credible intervals
+
+lambdasd <- out$sd$lambda
+rsd <- rasterFromXYZ(cbind(wbdata[, 1:2], lambdasd))
+
+plot(rsd, main = "Standard errors")
+
+# credible intervals
+lambdasims <- out$sims.list$lambda
+lowerCI <- apply(lambdasims, 2, quantile, probs = 0.025)
+upperCI <- apply(lambdasims, 2, quantile, probs = 0.975)
+
+rlowerCI <- rasterFromXYZ(cbind(wbdata[, 1:2], lowerCI))
+rupperCI <- rasterFromXYZ(cbind(wbdata[, 1:2], upperCI))
+
+plot(stack(rlowerCI, rupperCI))
+
+# BUGS can onnly utilize about 3GB of RAM, => Alternatives: INLA package or STAN
+# STAN should be very similar to BUGS code
