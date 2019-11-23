@@ -4,6 +4,7 @@ require(raster)
 require(gstat)
 require(lattice)
 require(nlme)
+require(raster)
 
 set.seed(100)
 
@@ -48,7 +49,8 @@ plot(r)
 r@data@values <- r@data@values / 1000
 plot(r)
 
-shift <- shift(r, x = -7.45, y = -46.6)
+# dx dy for other package version
+shift <- raster::shift(r, dx = -7.45, dy = -46.6)
 plot(shift)
 shift <- scale(shift)
 plot(shift)
@@ -408,3 +410,13 @@ plot(stack(rlowerCI, rupperCI))
 
 # BUGS can onnly utilize about 3GB of RAM, => Alternatives: INLA package or STAN
 # STAN should be very similar to BUGS codest
+# 
+# logit regression + vor & nachteile 
+# kriging, einführen, gaussprozesse
+# matern, spherical, exponential, gauss
+# in stan übersetzen. 
+# Frau Höfer
+# Zettel abgeben
+# Bachelorarbeit in 2 fach gebundener form + Rcode als CD
+# zip datei & PDF
+# 
