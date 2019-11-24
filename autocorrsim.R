@@ -48,7 +48,7 @@ plot(r)
 r@data@values <- r@data@values / 1000
 plot(r)
 
-shift <- shift(r, x = -7.45, y = -46.6)
+shift <- raster::shift(r, dx = -7.45, dy = -46.6)
 plot(shift)
 shift <- scale(shift)
 plot(shift)
