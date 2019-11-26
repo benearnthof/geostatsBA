@@ -84,3 +84,25 @@ d %>%
     layout()
 
 # add other bases & mgcv comparison later
+
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("destiny")
+data(guo_norm)
+dm <- DiffusionMap(guo_norm)
+plot(dm)
+
+palette(cube_helix(6))
+plot(dm,pch = 20,# pch for prettier points
+     col_by ='num_cells',# or “col” with a vector or one color
+     legend_main ='Cell stage')
+
+library(rgl)
+plot3d(eigenvectors(dm)[, 1:3],
+       col = log2(guo_norm$num_cells),
+       type ='s', 
+       radius = .01)
+view3d(theta = 10, phi = 30, zoom = .8)
+spin3d(axis = c(0, 0, 1), rpm = 5)
