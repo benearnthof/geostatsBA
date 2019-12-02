@@ -1,5 +1,5 @@
 # MGCV shenanigans
-require(mgcv)
+source("packageloader.R")
 ?gamSim
 set.seed(24)
 eg <- gamSim(2, n = 300, scale = 0.05)
@@ -18,12 +18,6 @@ par(op)
 
 # https://www.fromthebottomoftheheap.net/2018/04/21/fitting-gams-with-brms/
 # https://m-clark.github.io/workshops/stars/extensions.html
-require(devtools)
-# package to visualize gam results with ggplot2
-devtools::install_github('gavinsimpson/schoenberg')
-require("schoenberg")
-require('brms')
-require('ggplot2')
 
 # load the example data mcycle
 data(mcycle, package = 'MASS')
