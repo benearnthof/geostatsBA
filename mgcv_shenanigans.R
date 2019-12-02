@@ -4,8 +4,8 @@ require(mgcv)
 set.seed(24)
 eg <- gamSim(2, n = 300, scale = 0.05)
 b  <- gam(y ~ s(x, z, bs = "gp", k = 50, m = c(3, 0.175)), data = eg$data, method = "REML") ## Matern spline
-b1 <- gam(y ~ s(x, z, bs = "gp", k = 50, m = c(1, 0.175)), data = eg$data, method = "REML") ## spherical 
-b2 <- gam(y ~ s(x, z, bs = "gp", k = 50, m = c(2, 0.175)), data = eg$data, method = "REML") ## exponential 
+b1 <- gam(y ~ s(x, z, bs = "gp", k = 50, m = c(1, 0.175)), data = eg$data, method = "REML") ## spherical
+b2 <- gam(y ~ s(x, z, bs = "gp", k = 50, m = c(2, 0.175)), data = eg$data, method = "REML") ## exponential
 
 op <- par(mfrow=c(2,2), mar = c(0.5,0.5,3,0.5))
 with(eg$truth, persp(x, z, f, theta = 30, main = "Truth")) ## truth
@@ -20,7 +20,7 @@ par(op)
 # https://m-clark.github.io/workshops/stars/extensions.html
 require(devtools)
 # package to visualize gam results with ggplot2
-# devtools::install_github('gavinsimpson/schoenberg')
+devtools::install_github('gavinsimpson/schoenberg')
 require("schoenberg")
 require('brms')
 require('ggplot2')
@@ -43,9 +43,9 @@ summary(m1)
 plot(m1)
 draw(m1)
 
-# the same model can be estimated the bayesian way with the brm function of the 
+# the same model can be estimated the bayesian way with the brm function of the
 # brms package
-# cant use te() or ti() tensor smooths, need to use t2() instead. 
+# cant use te() or ti() tensor smooths, need to use t2() instead.
 
 m2 <- brm(bf(accel ~ s(times)),
           data = mcycle, family = gaussian(), cores = 4, seed = 17,
@@ -55,14 +55,14 @@ plot(m2)
 summary(m2)
 pairs(m2)
 shinystan::launch_shinystan(m2)
-# sds(stimes_1) is the variance parameter which controls the wiggliness of the 
-# smooth. the larger this value the more wiggly the smooth. 
+# sds(stimes_1) is the variance parameter which controls the wiggliness of the
+# smooth. the larger this value the more wiggly the smooth.
 # The credible interval does not include 0 so there is evidence that a smooth is
-# required over and above a linear parametric effect of times. 
-# stimes_1 is th efixed effect part of the spline which is the linear function 
+# required over and above a linear parametric effect of times.
+# stimes_1 is th efixed effect part of the spline which is the linear function
 # that is perfectly smooth.
 
-# comparing both models: 
+# comparing both models:
 gam.vcomp(m1, rescale = FALSE)
 # compares well to the credible interval of the brm() version
 # (453 & 1153)
@@ -76,8 +76,22 @@ draw(m1)
 # posterior predictive checks to assess model fit
 pp_check(m2)
 pp_check(m2, type = "ecdf_overlay")
-# both plots show deviations between the posterior simulations and the observed 
-# data. This is because of non constant variance of the acceleration data 
+# both plots show deviations between the posterior simulations and the observed
+# data. This is because of non constant variance of the acceleration data
 # conditional upon the covariate. Both models assumed that the observations
-# are distributed gaussian with constant variance. 
+# are distributed gaussian with constant variance.
 # https://peerj.com/preprints/27320.pdf
+
+dat <- gamSim(1, n = 200, scale = 2)
+fit <- brm(y ~ s(x0) + s(x1) + s(x2) + s(x3), data = dat)
+plot(fit)
+
+# all smooth terms
+plot(marginal_smooths(fit), rug = TRUE, ask = FALSE)
+
+# fit and plot a two-dimensional smooth term
+fit2 <- brm(y ~ t2(x0, x2), data = dat)
+ms <- marginal_smooths(fit2)
+plot(ms, stype = "contour")
+plot(ms, stype = "raster")
+
