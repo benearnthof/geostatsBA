@@ -4,10 +4,10 @@ packages <- c(
   "vegan", "mapview", "ggplot2", "shiny", "zoo", "rbenchmark", "tmaptools",
   "shinyjs", "parallelMap", "rasterVis", "arm", "latticeExtra", "grid", "pROC",
   "maptools", "doParallel", "shinythemes", "devtools", "mgcv", "brms", "gstat",
-  "lattice", "nlme", "spdep", "schoenberg"
+  "lattice", "nlme", "spdep", "schoenberg", "styler"
 )
 
-if (!require(schoenberg)) devtools::install_github('gavinsimpson/schoenberg')
+if (!require(schoenberg)) devtools::install_github("gavinsimpson/schoenberg")
 
 # checking which packages have been installed
 packs <- lapply(packages, FUN = function(packages) {

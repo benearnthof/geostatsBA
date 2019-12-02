@@ -11,25 +11,26 @@
 # I exported the data from the database as a .csv and did minimal preprocessing which i did not save.
 # All i saved is the .RDS file.
 
+source("packageloader.R")
 # Importing the Data and cleaning everything up
 raw_data <- readRDS("Daten/Daten_mit_Epoche.RDS")
-raw_data <- raw_data[,!colnames(raw_data) %in% c("lng", "lat", "wkb_geom", "wkb_geom_wgs84")]
+raw_data <- raw_data[, !colnames(raw_data) %in% c("lng", "lat", "wkb_geom", "wkb_geom_wgs84")]
 raw_data$lng_wgs84 <- as.numeric(as.vector(raw_data$lng_wgs84))
 raw_data$lat_wgs84 <- as.numeric(as.vector(raw_data$lat_wgs84))
-raw_data <- raw_data[order(raw_data$lng_wgs84, raw_data$lat_wgs84),]
+raw_data <- raw_data[order(raw_data$lng_wgs84, raw_data$lat_wgs84), ]
 
 # Loading data from Downloaded raster files and through R's interface for loading
 # Raster and vector data
 
 ger_file <- raster::getData("GADM", country = "Germany", level = 1)
 plot(ger_file)
-bay_file <- ger_file[match(toupper("Bayern"),toupper(ger_file$NAME_1)),]
+bay_file <- ger_file[match(toupper("Bayern"), toupper(ger_file$NAME_1)), ]
 # border of bavaria => useful for masking
 plot(bay_file)
 
 # Generating random raster as a basis for masking
 bay_raster <- raster(xmn = 8.975, xmx = 13.84167, ymn = 47.26667, ymx = 50.56667, nrow = 396, ncol = 584)
-bay_raster[] <- runif(396*584)
+bay_raster[] <- runif(396 * 584)
 plot(bay_raster)
 # masking
 bay_mask <- mask(bay_raster, bay_file)
@@ -46,7 +47,7 @@ writeRaster(dem, "Daten/dem", overwrite = TRUE)
 
 # Percipitation and average temperature
 # these files are 72.3 MB large in total so it can take a while until the download is finished
-weatherdata <- raster::getData("worldclim", var = "bio", res = 0.5, lon =  12.101624, lat = 49.013432)
+weatherdata <- raster::getData("worldclim", var = "bio", res = 0.5, lon = 12.101624, lat = 49.013432)
 # at the moment I just added average temperature and rain but variables like solar
 # radiation might also be of interest later on
 weatherdata <- weatherdata[[c(1, 12)]]
@@ -62,9 +63,8 @@ writeRaster(weatherdata[[1]], "Daten/temp_raster", overwrite = TRUE)
 writeRaster(weatherdata[[2]], "Daten/rain_raster", overwrite = TRUE)
 
 # calculating terrain => slope aspect and tpi
-# dem <- predictors$dem
 env_data <- terrain(dem, opt = c("slope", "aspect", "tpi"), unit = "degrees")
-env_data$aspect <- ceiling((env_data$aspect + 360/8/2)/(360/8))
+env_data$aspect <- ceiling((env_data$aspect + 360 / 8 / 2) / (360 / 8))
 env_data$aspect[env_data$aspect > 8] <- 1
 plot(env_data)
 # Turn into Cathegorial Variable
@@ -140,4 +140,7 @@ predictors <- stack(c(
   "Daten/sunhours_raster.grd",
   "Daten/tpi_raster.grd",
   "Daten/slope_raster.grd",
-  "Daten/aspect_raster.grd"))
+  "Daten/aspect_raster.grd"
+))
+
+saveRDS(predictors, file = "Daten/predictors.RDS")
