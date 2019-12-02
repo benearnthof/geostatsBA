@@ -1,4 +1,5 @@
 # MGCV shenanigans
+# https://people.maths.bris.ac.uk/~sw15190/mgcv/tampere/mgcv.pdf
 source("packageloader.R")
 ?gamSim
 set.seed(24)

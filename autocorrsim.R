@@ -27,6 +27,7 @@ X <- rmvn(1, rep(0, n), exp(-delta * distance))
 
 # converting to raster
 Xraster <- rasterFromXYZ(cbind(simgrid[, 1:2] - 0.5, X))
+# Xraster is the true underlying effect of the spatially correlated covariate
 
 # theoretic distance correlation:
 plot(1:100, exp(-delta * 1:100), type = "l", xlab = "Dist", ylab = "Corr")
@@ -67,9 +68,11 @@ beta2 <- -2
 
 # abundance as a quadratic function of elevation
 lambda1 <- exp(beta0 + beta1 * values(elev) + beta2 * values(elev)^2)
+plot(sort(lambda1))
 # abundance as a quadratic function of elevation + other spatially
 # autocorrelated covariate
 lambda2 <- exp(beta0 + beta1 * values(elev) + beta2 * values(elev)^2 + values(Xraster))
+plot(sort(lambda2))
 
 # Plot the results
 par(mfrow = c(1, 2))
