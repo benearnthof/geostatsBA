@@ -1,9 +1,6 @@
 # Accounting for spatial autocorrelation ====
 # Step 1: Data generation
-require(raster)
-require(gstat)
-require(lattice)
-require(nlme)
+source("packageloader.R")
 
 set.seed(100)
 
@@ -30,6 +27,7 @@ X <- rmvn(1, rep(0, n), exp(-delta * distance))
 
 # converting to raster
 Xraster <- rasterFromXYZ(cbind(simgrid[, 1:2] - 0.5, X))
+# Xraster is the true underlying effect of the spatially correlated covariate
 
 # theoretic distance correlation:
 plot(1:100, exp(-delta * 1:100), type = "l", xlab = "Dist", ylab = "Corr")
@@ -48,7 +46,7 @@ plot(r)
 r@data@values <- r@data@values / 1000
 plot(r)
 
-shift <- shift(r, x = -7.45, y = -46.6)
+shift <- raster::shift(r, dx = -7.45, dy = -46.6)
 plot(shift)
 shift <- scale(shift)
 plot(shift)
@@ -70,9 +68,11 @@ beta2 <- -2
 
 # abundance as a quadratic function of elevation
 lambda1 <- exp(beta0 + beta1 * values(elev) + beta2 * values(elev)^2)
+plot(sort(lambda1))
 # abundance as a quadratic function of elevation + other spatially
 # autocorrelated covariate
 lambda2 <- exp(beta0 + beta1 * values(elev) + beta2 * values(elev)^2 + values(Xraster))
+plot(sort(lambda2))
 
 # Plot the results
 par(mfrow = c(1, 2))
@@ -124,15 +124,15 @@ plot(vario2, smooth = TRUE, ylim = c(0.4, 1.3))
 # fitting the model with spatial correlation structure => gls function using correlation argument
 # nugget argument is for the intercept
 
-m3 <- gls(log1p(counts) ~ elevation + I(elevation^2), 
+m3 <- gls(log1p(counts) ~ elevation + I(elevation^2),
           correlation = corExp(form = ~ x + y, nugget = TRUE), data = sampledata)
 m4 <- gls(log1p(counts) ~ elevation + I(elevation^2),
           correlation = corGaus(form = ~ x + y, nugget = TRUE), data = sampledata)
-m5 <- gls(log1p(counts) ~ elevation + I(elevation^2), 
+m5 <- gls(log1p(counts) ~ elevation + I(elevation^2),
           correlation = corSpher(form = ~ x + y, nugget = TRUE), data = sampledata)
-m6 <- gls(log1p(counts) ~ elevation + I(elevation^2), 
+m6 <- gls(log1p(counts) ~ elevation + I(elevation^2),
           correlation = corLin(form = ~ x + y, nugget = TRUE), data = sampledata)
-m7 <- gls(log1p(counts) ~ elevation + I(elevation^2), 
+m7 <- gls(log1p(counts) ~ elevation + I(elevation^2),
           correlation = corRatio(form = ~x + y, nugget = TRUE), data = sampledata)
 
 AIC(m2, m3, m4, m5, m6, m7)
@@ -143,25 +143,25 @@ AIC(m2, m3, m4, m5, m6, m7)
 vario3 <- Variogram(m3, from = ~x + y, resType = "pearson")
 plot(vario3, smooth = FALSE)
 
-# looks pretty solid 
+# looks pretty solid
 # plotting a sample variogram of the normalized residuals
 # These residuals are standardized residuals pre-multiplied by the inverse square-root
-# factor fo the estimated error correlation matrix. 
-# Thus, if the residual spatial autocorrelation was properly accounted for by m3, 
-# we should not see any trend in this new variogram. 
+# factor fo the estimated error correlation matrix.
+# Thus, if the residual spatial autocorrelation was properly accounted for by m3,
+# we should not see any trend in this new variogram.
 vario4 <- Variogram(m3, form = ~x + y, resType = "normalized", maxDist = 60)
 plot(vario4, smooth = FALSE)
 
 # more or less horizontal band of points => the model seems to fit the data reasonably well
 # lets start to make inferences based on these results
 
-# Accounting for spatial autocorrelation using the gls function allows us to get 
+# Accounting for spatial autocorrelation using the gls function allows us to get
 # unbiased parameter and uncertainty estimates, the modelled correlation structure
-# however is not directly use when making predictions. If we want to use the extra 
-# information provided by the spatial autocorrelation to make better predictions, 
-# we need more complex models. 
+# however is not directly use when making predictions. If we want to use the extra
+# information provided by the spatial autocorrelation to make better predictions,
+# we need more complex models.
 
-resp <- expm1(predict(m3, newdata = data.frame(elevation = values(elev), x = coordinates(elev)[,1], 
+resp <- expm1(predict(m3, newdata = data.frame(elevation = values(elev), x = coordinates(elev)[,1],
                                                y = coordinates(elev)[2])))
 resp <- rasterFromXYZ(cbind(coordinates(elev), resp))
 plot(resp, main = "Predicted abundances")
@@ -169,11 +169,11 @@ plot(resp, main = "Predicted abundances")
 # looks promising so far
 
 # Analysis using ordinary kriging ====
-# (Gaussian process regression or best linear unbiased prediction) 
+# (Gaussian process regression or best linear unbiased prediction)
 # Basic Idea:
-# The value of interest at an unknown point is computed as a weighted average 
-# of the sampled neighbours. The weights are defined by the variogram model. 
-# Ordinary kriging assumes that the data comes from a multivariate normal 
+# The value of interest at an unknown point is computed as a weighted average
+# of the sampled neighbours. The weights are defined by the variogram model.
+# Ordinary kriging assumes that the data comes from a multivariate normal
 # distribution => log transform the generated example data
 
 datsp <- sampledata
@@ -184,12 +184,12 @@ vario <- variogram(log1p(counts) ~ 1, datsp)
 plot(vario)
 
 # Ordinary kriging only requires the relationship between similarity and distance
-# no covariates are introduced as of yet. This relationship is computed from the 
-# sample variogram. To get predictions we need to fit a theoretical variogram 
-# model to our sample variogram. 
-# Fit a non-linear regression to the variogram using fit.variogram function of 
-# gstat package. The vgm function allows us to specify the theoretical model 
-# => exponential, gaussian, spherical, etc. 
+# no covariates are introduced as of yet. This relationship is computed from the
+# sample variogram. To get predictions we need to fit a theoretical variogram
+# model to our sample variogram.
+# Fit a non-linear regression to the variogram using fit.variogram function of
+# gstat package. The vgm function allows us to specify the theoretical model
+# => exponential, gaussian, spherical, etc.
 # and also specify initial values for the variogram parameters.
 
 # Fit theoretical variogram model to our sample variogram
@@ -202,15 +202,15 @@ plot(vario, counts.vgm, pch = "+", main = "log1p(counts)", cex = 2)
 # lets make predictions using ordinary kriging
 # ~1 indicates ordinary kriging, second argument is SpatialPointsDataFrame containing
 # the locations of the sampled sites with the corresponding values of the response variable
-# third argument is Spatial object => spatial pixels data frame containing the 
-# coordinates of the sites for which we want to have predictions. 
-# last argument is fitted variogram model. 
+# third argument is Spatial object => spatial pixels data frame containing the
+# coordinates of the sites for which we want to have predictions.
+# last argument is fitted variogram model.
 
-# krige function returns SpatialPixelsDataFrame with 2 columns 
-# Predictions and prediction variances. 
+# krige function returns SpatialPixelsDataFrame with 2 columns
+# Predictions and prediction variances.
 # => need to back transform the predictions after the log transform
 
-# Ordinary kriging 
+# Ordinary kriging
 # crs(datsp) <- crs(elevpx)
 # does not work properly lets ignore crs for now
 crs(datsp) <- NA
@@ -224,16 +224,16 @@ plot(preds, main = c("Ordinary kriging predictions", "Prediction variance"))
 # back transform the predictions
 plot(exp(preds[[1]]) - 1, main = "Back-transformed Predictions")
 
-# at least we tried. 
+# at least we tried.
 # no covariate => predictions are strongly smoothed and most of the time not very accurate
-# => This method does not work well if the distribution of a species is mostly determined 
-# by covariates with sharp boundaries. 
+# => This method does not work well if the distribution of a species is mostly determined
+# by covariates with sharp boundaries.
 
 # Analysis using universal kriging (regression kriging) ====
 # (Universal Kriging; Kriging with external drift.)
 # Combines information from the covariates and the residual spatial autocorrelation
-# Also assumes the data is drawn from a multivariate normal distribution. 
-# Model fitting is identical to the GLS with covariates, but prediction is different. 
+# Also assumes the data is drawn from a multivariate normal distribution.
+# Model fitting is identical to the GLS with covariates, but prediction is different.
 
 # Fit a simple linear model
 m <- lm(log1p(counts) ~ elevation + I(elevation^2), data = datsp)
@@ -251,8 +251,8 @@ plot(vario.rs, counts.rvgm, pc = "+", main = "Residuals", cex = 2)
 
 # we got the theoretical model describing the residual spatial autocorrelation
 # use krige function with covariates in the formula
-# When using universal kriging the third argument must not only contain the coordinates 
-# of the predicted sites, but also the value of the covariates for these sites. 
+# When using universal kriging the third argument must not only contain the coordinates
+# of the predicted sites, but also the value of the covariates for these sites.
 
 # regression-kriging
 names(elevpx@data) <- "elevation"
@@ -266,19 +266,19 @@ plot(exp(preds[[1]]) - 1, main = "Predictions (back-transformed")
 # wow it seems we are able to account for most of the structure in the data!
 
 # universal kriging is mathematicall equivalent to the following 2-step procedure:
-# First fit a linear model to the data using covariates, then perform ordinary 
-# kriging on the residuals and add the kriged residuals to the predictions of 
+# First fit a linear model to the data using covariates, then perform ordinary
+# kriging on the residuals and add the kriged residuals to the predictions of
 # the linear model. The new predictions are the same as the ones provided
-# by universal kriging. This way of computing universal kriging predictions is 
-# usually called regression kriging. 
-# This has the advantage, that we are able to fit a GLM to our count data, 
-# using for example a poisson distribution; we can then interpolate the GLM 
-# residuals using ordinary kriging and add them to our predictions. 
+# by universal kriging. This way of computing universal kriging predictions is
+# usually called regression kriging.
+# This has the advantage, that we are able to fit a GLM to our count data,
+# using for example a poisson distribution; we can then interpolate the GLM
+# residuals using ordinary kriging and add them to our predictions.
 # (Add the kriged residuals to the predictions on the link scale and then back-
-# transform the results.) Unfortunately getting the standard errors is more 
-# complicated using this method. 
+# transform the results.) Unfortunately getting the standard errors is more
+# complicated using this method.
 # Fitting the variogram by hand can be difficult, especially with multiple possible
-# different models. The automap package provides the very useful autokrige function, 
+# different models. The automap package provides the very useful autokrige function,
 # which will fit the most appropriate variogram model (smallest residual sum of squares)
 # and compute predictions using kriging. Most of the time this function will fit more
 # flexible variogram models (Matern models.)
@@ -294,21 +294,21 @@ plot(exp(preds[[1]]) - 1, main = "Predictions (back-transformed")
 
 
 # Analysis using Conditional Autoregressive (CAR) models ====
-# Kriging is modelling spatial autocorrelation as a continuous processs. 
-# This is more realistic but can be very computationally expensive, especially 
+# Kriging is modelling spatial autocorrelation as a continuous processs.
+# This is more realistic but can be very computationally expensive, especially
 # in a bayesian context. One solution to this problem is to model the spatial
-# autocorrelation as a discrete process, and to assume that only the nearest 
-# neighbours are responsible for the residual spatial autocorrelation. 
+# autocorrelation as a discrete process, and to assume that only the nearest
+# neighbours are responsible for the residual spatial autocorrelation.
 require(spdep)
 require(BRugs)
 require(R2WinBUGS)
 require(R2OpenBUGS)
-# prepare data first => use NAs fore response variable at unsurveyed sites. 
-# We don't need the distance matrix here because we assume a discrete process, 
-# but we still need to find the nearest neighbours for each site. 
+# prepare data first => use NAs fore response variable at unsurveyed sites.
+# We don't need the distance matrix here because we assume a discrete process,
+# but we still need to find the nearest neighbours for each site.
 
-# resolution of 1 => assume minimal distance of 0 and max. distance of 1.5 for 
-# the 8 pixels around each pixels. 
+# resolution of 1 => assume minimal distance of 0 and max. distance of 1.5 for
+# the 8 pixels around each pixels.
 
 # Define the sampled sites and add a missing response for the other ones
 wbdata <- fulldata
@@ -322,8 +322,8 @@ winnb <- nb2WB(nb)
 
 # define model in the BUGS language
 # Start by defining a standard poisson regression (we are modelling counts) and
-# add a random effect rho_i in the linear predictor. The value of this effect 
-# will be different for each site and is defined by neighbouring sites. 
+# add a random effect rho_i in the linear predictor. The value of this effect
+# will be different for each site and is defined by neighbouring sites.
 
 
 
@@ -352,13 +352,13 @@ model {
 ", fill = TRUE)
 sink()
 
-# prepare the data for WinBUGS and set the different MCMC settings. 
+# prepare the data for WinBUGS and set the different MCMC settings.
 # Bundle data
-win.data <- list(n = n, y = wbdata$counts, x1 = wbdata$elevation, x2 = (wbdata$elevation)^2, 
+win.data <- list(n = n, y = wbdata$counts, x1 = wbdata$elevation, x2 = (wbdata$elevation)^2,
                  num = winnb$num, adj = winnb$adj, weights = winnb$weights)
 # Initial values
 inits <- function() {
-  list(beta0 = runif(1, -3, 3), beta1 = runif(1, -3, 3), beta2 = runif(1, 
+  list(beta0 = runif(1, -3, 3), beta1 = runif(1, -3, 3), beta2 = runif(1,
                                                                        -3, 3), rho = rep(0, n))
 }
 # Parameters monitored
@@ -370,9 +370,9 @@ nt <- 1
 nb <- 100
 nc <- 1
 
-# running the model 
-out <- bugs(data = win.data, inits = inits, parameters.to.save = params, model.file = "CAR.txt", 
-            n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb, 
+# running the model
+out <- bugs(data = win.data, inits = inits, parameters.to.save = params, model.file = "CAR.txt",
+            n.chains = nc, n.thin = nt, n.iter = ni, n.burnin = nb,
             working.directory = getwd(), clearWD = TRUE)
 
 # get posterior means
@@ -385,10 +385,10 @@ rrho <- rasterFromXYZ(cbind(wbdata[, 1:2], out$mean$rho))
 
 plot(stack(rcar, rrho))
 
-# even for just one chain without thinning per parameter the results look 
-# promising already. 
-# Now lets get information about the standard errors 
-# We have the full posterior distribution of the predictions for each site. 
+# even for just one chain without thinning per parameter the results look
+# promising already.
+# Now lets get information about the standard errors
+# We have the full posterior distribution of the predictions for each site.
 # lets map the standard deviation of the posterior and 95% credible intervals
 
 lambdasd <- out$sd$lambda
