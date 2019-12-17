@@ -1,4 +1,6 @@
 # I'm only interested in settlements from the iron age
+# get raw data and predictorstack from preprocessing.R
+predictors <- readRDS(file = "Daten/predictors.RDS")
 raster::unique(raw_data$Epoche)
 presence <- raw_data[raw_data$Epoche %in% c("Hallstattzeit", "Latènezeit"),]
 nrow(presence)
@@ -12,13 +14,13 @@ sites <- unique(sites[,c("lng_wgs84", "lat_wgs84")])
 temp <- sampleRandom(predictors[[1]], 1000, sp = T)
 sp_sites <- sp::SpatialPoints(coords      = sites[,c("lng_wgs84","lat_wgs84")], # order matters
                               proj4string = predictors@crs)
-utm_sites <- spTransform(sp_sites, CRS("+proj=utm +zone=32 ellps=WGS84"))
+utm_sites <- spTransform(sp_sites, CRS("+proj=utm +zone=32 +ellps=WGS84"))
 sf_sites <- st_as_sf(utm_sites)
 
 sites_buff_1000m <- st_buffer(sf_sites, dist = 1000)
-temp_utm <- spTransform(temp, CRS("+proj=utm +zone=32 ellps=WGS84"))
+temp_utm <- spTransform(temp, CRS("+proj=utm +zone=32 +ellps=WGS84"))
 
-tmp <- temp_utm[sites_buff_1000m$geometry,]
+# tmp <- temp_utm[sites_buff_1000m$geometry,]
 
 sp_polygons_buffer <- sf::as_Spatial(sites_buff_1000m$geometry)
 crs(sp_polygons_buffer) <- crs(temp_utm)
@@ -36,9 +38,9 @@ ret2500_within <- spTransform(ret2500_within, crs(temp))
 ret2500_without <- temp_utm[is.na(over(temp_utm, sp_polygons_2500)),]
 ret2500_without <- spTransform(ret2500_without, crs(temp))
 
-# mapview(sp_sites) + 
-#   mapview(ret2500_without, color = "red")
-# # works as expected 
+mapview(sp_sites) +
+  mapview(ret2500_without, color = "red", fill = "red")
+# works as expected
 
 # function to sample around the points with a given buffer
 buffsample <- function(ssize = 1000, distance = 1000, within = FALSE, returnsize = 1000) {
@@ -48,16 +50,16 @@ buffsample <- function(ssize = 1000, distance = 1000, within = FALSE, returnsize
              bbox = structure(c(1, 1, 1, 1), .Dim = c(2L, 2L),                         
                               .Dimnames = list(c("coords.x1", "coords.x2"),
                                                c("min", "max"))),
-             proj4string = new("CRS", projargs = "+proj=utm +zone=32 ellps=WGS84 +ellps=WGS84"))
+             proj4string = new("CRS", projargs = "+proj=utm +zone=32 +ellps=WGS84"))
   sp_sites <- sp::SpatialPoints(coords = sites[,c("lng_wgs84","lat_wgs84")], proj4string = predictors@crs)
-  utm_sites <- spTransform(sp_sites, CRS("+proj=utm +zone=32 ellps=WGS84"))
+  utm_sites <- spTransform(sp_sites, CRS("+proj=utm +zone=32 +ellps=WGS84"))
   sf_sites <- st_as_sf(utm_sites)
   sites_buff <- st_buffer(sf_sites, dist = distance)
   
   sp_polygons_buffer <- sf::as_Spatial(sites_buff$geometry)
   while (nrow(ret@coords) < returnsize) {
     sample <- sampleRandom(predictors[[1]], ssize, sp = T)
-    sample_utm <- spTransform(sample, CRS("+proj=utm +zone=32 ellps=WGS84"))
+    sample_utm <- spTransform(sample, CRS("+proj=utm +zone=32 +ellps=WGS84"))
     crs(sp_polygons_buffer) <- crs(sample_utm)
     over(sample_utm, sp_polygons_buffer)
     nrow(sample_utm)
@@ -82,6 +84,7 @@ sites_buff_1500m <- st_buffer(sf_sites, dist = 1500)
 nrow(funtest)
 
 coordinates(funtest5k) <- c("lng_wgs84", "lat_wgs84")
+crs(funtest5k) <- CRS("+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs")
 mapview(sites_buff_1500m) + 
   mapview(funtest5k, alpha.regions = 0.1, color = "red")
 # works as intended and performs reasonably well
@@ -139,5 +142,59 @@ evidence <- finalizeEvidence(evidence)
 
 saveRDS(evidence, file = "Daten/evidence.csv")
 evidence <- readRDS("Daten/evidence.csv")
-# fitting a generalized linear model to use as baseline +
+# fitting gam and trying out kriging
 names(evidence)
+
+require(mgcv)
+glmfit <- glm(site ~ dem + temp + rain + distance_water + frostdays + sunhours + 
+                tpi + slope + as.factor(aspect), 
+              family = binomial(), 
+              data = evidence)
+
+# predictive mapping 
+df <- as.data.frame(predictors)
+df[c("x","y")] <- coordinates(predictors)
+pdata <- predict(glmfit, newdata = df, type = "response")
+df$pdata <- pdata
+
+x_pred <- predictors
+x_pred$pred <- pdata
+
+# predictive plot for glm
+plot(x_pred$pred)
+
+
+fit <- gam(site ~ dem + temp + rain + distance_water + frostdays + sunhours + 
+                 tpi + slope, 
+               family = binomial, 
+               data = evidence)
+
+# how to include factor variable in predictors?
+# df_gam <- df[complete.cases(df),]
+# preds <- predictors
+# preds$aspect <- as.factor(preds$aspect)
+pdatagam <- predict(predictors, fit, type = "response")
+plot(pdatagam)
+
+## Matern spline default range
+matern <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
+                distance_water + frostdays + sunhours + tpi + slope + as.factor(aspect), 
+              family = binomial, 
+              data = evidence)  
+
+vis.gam(matern, view = c("lon", "lat"))
+
+matern2 <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
+               s(distance_water) + frostdays + sunhours + tpi + slope, 
+              family = binomial, 
+              data = evidence)  
+vis.gam(matern2, view = c("lon", "lat"))
+plot(matern2)
+draw(matern2)
+termplot(matern2)
+
+preds <- predictors
+preds$lon <- coordinates(predictors)[,1]
+preds$lat <- coordinates(predictors)[,2]
+test <- predict(preds, matern2, type = "response")
+plot(test)
