@@ -163,24 +163,28 @@ x_pred$pred <- pdata
 # predictive plot for glm
 plot(x_pred$pred)
 
+evidence$aspect <- as.factor(evidence$aspect)
 
 fit <- gam(site ~ dem + temp + rain + distance_water + frostdays + sunhours + 
-                 tpi + slope, 
+                 tpi + slope + aspect, 
                family = binomial, 
                data = evidence)
 
 # how to include factor variable in predictors?
 # df_gam <- df[complete.cases(df),]
-# preds <- predictors
+preds <- predictors
 # preds$aspect <- as.factor(preds$aspect)
 pdatagam <- predict(predictors, fit, type = "response")
 plot(pdatagam)
 
-## Matern spline default range
-matern <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
+## gp spline default range
+matern <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain + 
                 distance_water + frostdays + sunhours + tpi + slope + as.factor(aspect), 
               family = binomial, 
               data = evidence)  
+
+# modellwahl => aic
+# k für gp smooth => was ist einfluss von k?
 
 vis.gam(matern, view = c("lon", "lat"))
 
@@ -193,6 +197,7 @@ plot(matern2)
 draw(matern2)
 termplot(matern2)
 
+# am 7. januar bei frau höfer abgeben
 preds <- predictors
 preds$lon <- coordinates(predictors)[,1]
 preds$lat <- coordinates(predictors)[,2]
