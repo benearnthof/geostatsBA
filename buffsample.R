@@ -176,25 +176,3 @@ fit <- gam(site ~ dem + temp + rain + distance_water + frostdays + sunhours +
 pdatagam <- predict(predictors, fit, type = "response")
 plot(pdatagam)
 
-## Matern spline default range
-matern <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
-                distance_water + frostdays + sunhours + tpi + slope + as.factor(aspect), 
-              family = binomial, 
-              data = evidence)  
-
-vis.gam(matern, view = c("lon", "lat"))
-
-matern2 <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
-               s(distance_water) + frostdays + sunhours + tpi + slope, 
-              family = binomial, 
-              data = evidence)  
-vis.gam(matern2, view = c("lon", "lat"))
-plot(matern2)
-draw(matern2)
-termplot(matern2)
-
-preds <- predictors
-preds$lon <- coordinates(predictors)[,1]
-preds$lat <- coordinates(predictors)[,2]
-test <- predict(preds, matern2, type = "response")
-plot(test)

@@ -102,6 +102,29 @@ require(brms)
 ms <- marginal_smooths(model2)
 plot(ms, stype = "raster")
 
-model3 <- gam(Volume ~ s(Girth) + s(Height), family = Gamma())
+model3 <- gam(Volume ~ s(Height) + s(Girth), family = Gamma(link = log))
 plot(model3)
 gam.check(model3)
+
+plot(density(Volume))
+hist(Volume)
+hist(log(Volume))
+
+library(mgcViz)
+v <- getViz(model3)
+plot(v)
+
+b <- gam(Volume ~ t2(Height, Girth))
+b <- getViz(b)
+plot(b) + l_fitRaster() + l_fitContour() + l_points()
+ck1 <- check1D(b, "Girth")
+ck1 + l_densCheck()
+
+ck1 <- check2D(b, x1 = "Height", x2 = "Girth")
+ck1 + l_gridCheck2D(gridFun = mean)
+
+# cubic regression splines
+ct2 <- gam(Volume ~ s(Height,bs="cr") + s(Girth,bs="cr"), 
+           family = Gamma(link = log), data = trees)
+ct2
+plot(ct2)
