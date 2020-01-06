@@ -163,16 +163,73 @@ x_pred$pred <- pdata
 # predictive plot for glm
 plot(x_pred$pred)
 
+evidence$aspect <- as.factor(evidence$aspect)
 
 fit <- gam(site ~ dem + temp + rain + distance_water + frostdays + sunhours + 
-                 tpi + slope, 
+                 tpi + slope + aspect, 
                family = binomial, 
                data = evidence)
 
 # how to include factor variable in predictors?
 # df_gam <- df[complete.cases(df),]
-# preds <- predictors
+preds <- predictors
 # preds$aspect <- as.factor(preds$aspect)
 pdatagam <- predict(predictors, fit, type = "response")
 plot(pdatagam)
+
+## gp spline default range
+gp <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain + 
+                distance_water + frostdays + sunhours + tpi + slope + as.factor(aspect), 
+              family = binomial, 
+              data = evidence)  
+
+# modellwahl => aic
+# k für gp smooth => was ist einfluss von k?
+
+vis.gam(gp, view = c("lon", "lat"))
+
+gp2 <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
+               s(distance_water) + frostdays + sunhours + tpi + slope, 
+              family = binomial, 
+              data = evidence)  
+vis.gam(gp2, view = c("lon", "lat"))
+plot(gp2)
+draw(gp2)
+termplot(gp2)
+
+# am 7. januar bei frau höfer abgeben
+preds <- predictors
+preds$lon <- coordinates(predictors)[,1]
+preds$lat <- coordinates(predictors)[,2]
+test <- predict(preds, gp2, type = "response")
+plot(test)
+
+# Low rank Gaussian process smooths
+# 
+# Gaussian process/kriging models based on simple covariance functions can be 
+# written in a very similar form to thin plate and Duchon spline models (e.g. 
+# Handcock, Meier, Nychka, 1994), and low rank versions produced by the eigen 
+# approximation method of Wood (2003). Kammann and Wand (2003) suggest a 
+# particularly simple form of the Matern covariance function with only a single 
+# smoothing parameter to estimate, and this class implements this and other 
+# similar models.
+# 
+# Usually invoked by an s(...,bs="gp") term in a gam formula. Argument m selects
+# the covariance function, sets the range parameter and any power parameter. If
+# m is not supplied then it defaults to NA and the covariance function 
+# suggested by Kammann and Wand (2003) along with their suggested range 
+# parameter is used. Otherwise m[1] between 1 and 5 selects the correlation 
+# function from respectively, spherical, power exponential, and Matern with 
+# kappa = 1.5, 2.5 or 3.5. m[2] if present specifies the range parameter, with
+# non-positive or absent indicating that the Kammann and Wand estimate should
+# be used. m[3] can be used to specify the power for the power exponential 
+# which otherwise defaults to 1.
+# 
+# 1 spherical
+# 2 power exponential
+# 3 matern kappa 1.5
+# 4 matern kappa 2.5
+# 5 matern kappa 3.5
+# k = 0.5 entspricht exponential modell
+# https://stats.stackexchange.com/questions/322523/what-is-the-rationale-of-the-mat%C3%A9rn-covariance-function
 
