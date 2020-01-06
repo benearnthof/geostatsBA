@@ -90,3 +90,14 @@ ms <- marginal_smooths(fit2)
 plot(ms, stype = "contour")
 plot(ms, stype = "raster")
 
+# mgcv kovarianzmatrix wird automatisch erzeugt? 
+# kann diese an stan ohne weiteres übergeben werden?
+# => welche funktioniert mit kriging am besten?
+# 
+# zeitliche komponente => epochen als kovariable mit aufnehmen
+# aufspalten für kleinere nachbarschaftsstrukturen 
+# zeitepochen, modellwahl, evtl stan als vergleichsmodell
+# kovarianzmatrizen, mgcv schätzverfahren explizit erklären
+# penalisierte likelihood
+# fahrmeir STAR modelle => strukturiert additive regression
+# bayesian theorie 
