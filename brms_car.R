@@ -54,3 +54,64 @@ make_stancode(rating ~ treat + period + carry + (1|subject),
 library(bayesplot)
 bayesplot::mcmc_plot(fit)
 plot(fit)
+
+# trying gp models
+dat <- mgcv::gamSim(1, n = 300, scale = 2)
+
+fit1 <- brm(y ~ s(x1, x2, bs = "gp"), dat, chains = 4, cores = 4)
+
+plot(fit1)
+me <- marginal_effects(fit1)
+plot(me)
+ms <- marginal_smooths(fit1)
+plot(ms)
+
+fit2 <- gam(y ~ s(x1, x2, bs = "gp"), data = dat)
+library(schoenberg)
+draw(fit2)
+plot(fit2)
+
+dat <- mgcv::gamSim(1, n = 100, scale = 2)
+fit1 <- brm(y ~ s(x1, x2, bs = "gp"), dat, chains = 4, cores = 4)
+fit2 <- brm(y ~ gp(x1, x2), dat, chains = 4, cores = 4)
+fit3 <- gam(y ~ s(x1, x2, bs = "gp"), data = dat)
+
+ms1 <- marginal_smooths(fit1)
+ms2 <- marginal_smooths(fit2)
+ms2 <- marginal_effects(fit2)
+
+plot(ms1)
+plot(ms2)
+plot(fit3)
+plot(fit2)
+
+# cor_sar 
+
+data(oldcol, package = "spdep")
+
+fit0 <- brm(CRIME ~ INC + HOVAL, data = COL.OLD,
+            chains = 2, cores = 2)
+
+fit1 <- brm(CRIME ~ INC + HOVAL, data = COL.OLD, 
+            autocor = cor_lagsar(COL.nb), 
+            chains = 2, cores = 2)
+summary(fit1)
+plot(fit1)
+
+fit2 <- brm(CRIME ~ INC + HOVAL, data = COL.OLD, 
+            autocor = cor_errorsar(COL.nb), 
+            chains = 2, cores = 2)
+summary(fit2)
+plot(fit2)
+
+plt_fitted <- function(fit) {
+  fitted_values <- fitted(fit)
+  data <- as.data.frame(cbind(Y = standata(fit)$Y, fitted_values))
+  plt <- ggplot(data) +
+    geom_point(aes(x = Estimate, y = Y))
+  return(plt)
+}
+
+plt_fitted(fit0)
+plt_fitted(fit1)
+plt_fitted(fit2)
