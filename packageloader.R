@@ -7,7 +7,7 @@ packages <- c(
   "lattice", "nlme", "spdep", "schoenberg", "styler"
 )
 
-if (!require(schoenberg)) devtools::install_github("gavinsimpson/schoenberg")
+# if (!require(schoenberg)) devtools::install_github("gavinsimpson/schoenberg")
 
 # checking which packages have been installed
 packs <- lapply(packages, FUN = function(packages) {
