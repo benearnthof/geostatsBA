@@ -128,3 +128,17 @@ ct2 <- gam(Volume ~ s(Height,bs="cr") + s(Girth,bs="cr"),
            family = Gamma(link = log), data = trees)
 ct2
 plot(ct2)
+
+
+bspline <- function(x,k,i,m=2) {
+  # evaluate ith B-spline basis function of order m at the
+  # values in x, given knot locations in k
+ if (m==-1) { # base of recursion
+  res <- as.numeric(x<k[i+1]&x>=k[i])
+  } else { # construct from call to lower order basis
+  z0 <- (x-k[i])/(k[i+m+1]-k[i])
+  z1 <- (k[i+m+2]-x)/(k[i+m+2]-k[i+1])
+  res <- z0*bspline(x,k,i,m-1)+ z1*bspline(x,k,i+1,m-1)
+}
+  res
+}

@@ -187,6 +187,12 @@ gp <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain +
 # k für gp smooth => was ist einfluss von k?
 
 vis.gam(gp, view = c("lon", "lat"))
+plot(gp)
+
+fit <- brm(site ~ s(lon, lat) + dem + temp + rain + 
+             distance_water + frostdays + sunhours + tpi + slope, 
+           family = binomial, 
+           data = evidence, chains = 4, cores = 4)
 
 gp2 <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
                s(distance_water) + frostdays + sunhours + tpi + slope, 
