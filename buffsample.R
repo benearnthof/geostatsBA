@@ -183,6 +183,11 @@ gp <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain +
               family = binomial, 
               data = evidence)  
 
+fit <- brm(site ~ s(lon, lat) + dem + temp + rain + 
+             distance_water + frostdays + sunhours + tpi + slope, 
+           family = binomial, 
+           data = evidence, chains = 4, cores = 4)
+
 # modellwahl => aic
 # k für gp smooth => was ist einfluss von k?
 

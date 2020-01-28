@@ -53,7 +53,7 @@ make_stancode(rating ~ treat + period + carry + (1|subject),
 
 library(bayesplot)
 bayesplot::mcmc_plot(fit)
-plot(fit)
+pairs(fit)
 
 # trying gp models
 dat <- mgcv::gamSim(1, n = 300, scale = 2)
@@ -67,21 +67,34 @@ ms <- marginal_smooths(fit1)
 plot(ms)
 
 fit2 <- gam(y ~ s(x1, x2, bs = "gp"), data = dat)
-library(schoenberg)
+# the library schoenberg has been taken over by a package for 12 tone music
+# the original one has been renamed to "gratia"
+# library(schoenberg)
+# install.packages('gratia')
+remotes::install_github("gavinsimpson/gratia")
 draw(fit2)
 plot(fit2)
 
-dat <- mgcv::gamSim(1, n = 100, scale = 2)
+dat <- mgcv::gamSim(1, n = 200, scale = 2)
 fit1 <- brm(y ~ s(x1, x2, bs = "gp"), dat, chains = 4, cores = 4)
 fit2 <- brm(y ~ gp(x1, x2), dat, chains = 4, cores = 4)
 fit3 <- gam(y ~ s(x1, x2, bs = "gp"), data = dat)
+fit4 <- brm(y ~ t2(x1, x2), data = dat)
+
+fits <- list(fit1, fit2, fit3, fit4)
+saveRDS(fits, file = "testfits.RDS")
 
 ms1 <- marginal_smooths(fit1)
 ms2 <- marginal_smooths(fit2)
 ms2 <- marginal_effects(fit2)
+ms3 <- marginal_effects(fit3)
+ms4 <- marginal_smooths(fit4)
 
 plot(ms1)
 plot(ms2)
+plot(fit3)
+plot(ms4)
+
 plot(fit3)
 plot(fit2)
 
