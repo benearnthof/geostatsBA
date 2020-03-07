@@ -183,14 +183,30 @@ gp <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain +
               family = binomial, 
               data = evidence)  
 
+testevidence <- sample_n(evidence, 500, replace = FALSE)
+
 fit <- brm(site ~ s(lon, lat) + dem + temp + rain + 
              distance_water + frostdays + sunhours + tpi + slope, 
-           family = binomial, 
-           data = evidence, chains = 4, cores = 4)
+           family = bernoulli, 
+           data = testevidence, chains = 2, cores = 2, iter = 1000, 
+           control=list(adapt_delta=0.8, 
+                        max_treedepth=13))
+
+summary(fit)
+ms_fit <- marginal_smooths(fit)
+plot(ms_fit)
+
+fit2 <- brm(site ~ gp(lon, lat) + dem + temp + rain + 
+              distance_water + frostdays + sunhours + tpi + slope,
+            family = bernoulli, data = testevidence, 
+            chains = 2, cores = 2, iter = 1000, 
+            control = list(adapt_delta = 0.8, 
+                           max_treedepth = 13))
 
 # modellwahl => aic
 # k für gp smooth => was ist einfluss von k?
-
+# 10. und 11. KW urlaub 
+# rdata objects anstelle von .rds
 vis.gam(gp, view = c("lon", "lat"))
 
 gp2 <- gam(site ~ s(lon, lat , bs="gp", k=50) + dem + temp + rain + 
