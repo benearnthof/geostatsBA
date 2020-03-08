@@ -77,18 +77,22 @@ pp_check(m2, type = "ecdf_overlay")
 # are distributed gaussian with constant variance.
 # https://peerj.com/preprints/27320.pdf
 
-dat <- gamSim(1, n = 200, scale = 2)
+dat <- mgcv::gamSim(1, n = 200, scale = 2)
 fit <- brm(y ~ s(x0) + s(x1) + s(x2) + s(x3), data = dat)
 plot(fit)
 
+fit <- gam(y ~ s(x1, x2, bs = "gp"), data = dat)
 # all smooth terms
 plot(marginal_smooths(fit), rug = TRUE, ask = FALSE)
 
 # fit and plot a two-dimensional smooth term
-fit2 <- brm(y ~ t2(x0, x2), data = dat)
+fit2 <- brm(y ~ gp(x1, x2), data = dat, chains = 2, cores = 2, iter = 1000)
 ms <- marginal_smooths(fit2)
 plot(ms, stype = "contour")
 plot(ms, stype = "raster")
+
+ms2 <- marginal_effects(fit2, nsamples = 200, spaghetti = TRUE)
+plot(ms2, ask = FALSE, points = TRUE)
 
 # mgcv kovarianzmatrix wird automatisch erzeugt? 
 # kann diese an stan ohne weiteres übergeben werden?

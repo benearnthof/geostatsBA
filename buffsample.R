@@ -183,6 +183,7 @@ gp <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain +
               family = binomial, 
               data = evidence)  
 
+set.seed(1)
 testevidence <- sample_n(evidence, 500, replace = FALSE)
 
 fit <- brm(site ~ s(lon, lat) + dem + temp + rain + 
@@ -196,12 +197,15 @@ summary(fit)
 ms_fit <- marginal_smooths(fit)
 plot(ms_fit)
 
+testevidence2 <- sample_n(evidence, 50, replace = FALSE)
 fit2 <- brm(site ~ gp(lon, lat) + dem + temp + rain + 
               distance_water + frostdays + sunhours + tpi + slope,
-            family = bernoulli, data = testevidence, 
+            family = bernoulli, data = testevidence2, 
             chains = 2, cores = 2, iter = 1000, 
             control = list(adapt_delta = 0.8, 
                            max_treedepth = 13))
+
+plot(fit2)
 
 # modellwahl => aic
 # k für gp smooth => was ist einfluss von k?
