@@ -329,6 +329,9 @@ all.equal(exp_brm, exp_mix)
 fit_exponential_1d <- gam(y ~ s(x2, bs = "gp", m = 2), data = dat)
 set.seed(1)
 brm_exponential_1d <- brm(y ~ gp(x2), data = dat, chains = 2, cores = 2, iter = 1000)
+brm_exponential_1d_spline <- brm(y ~ s(x2), data = dat, chains = 2, cores = 2, iter = 1000)
+
+
 # now lets modify stancode 
 stancode <- make_stancode(y ~ gp(x2), data = dat, chains = 2, cores = 2, iter = 1000)
 stancode2 <- make_stancode(y ~ s(x2), data = dat, chains = 2, cores = 2, iter = 1000)
@@ -336,6 +339,7 @@ standata <- make_standata(y ~ gp(x2), data = dat, chains = 2, cores = 2, iter = 
 standata2 <- make_standata(y ~ s(x2), data = dat, chains = 2, cores = 2, iter = 1000)
 
 require(rstan)
+require(StanHeaders)
 brm_custom_1d <- stan_model("onedimGP.stan", allow_undefined = TRUE,
                             includes = paste0('\n#include "', file.path(getwd(),'gp_exponential_cov.hpp'), '"\n'))
 brm_custom_1d <- stan_model("onedimGP.stan")
@@ -360,4 +364,177 @@ plot(me)
 # compile that to a stanmodel
 # convert that to a brms object
 # use marginal_smooths for smooth plots.
-# 
+# y ~ s(x2), data = dat, chains = 2, cores = 2, iter = 1000
+formula <- "y ~ s(x2)"
+data = dat 
+family = gaussian() 
+prior = NULL
+autocor = NULL 
+data2 = NULL 
+cov_ranef = NULL
+sample_prior = "no"
+sparse = NULL
+knots = NULL
+stanvars = NULL
+stan_funs = NULL
+fit = NA
+save_ranef = TRUE
+save_mevars = FALSE
+save_all_pars = FALSE
+inits = "random"
+chains = 2
+iter = 1000 
+warmup = floor(iter / 2)
+thin = 1
+cores = 2
+control = NULL
+algorithm = "sampling"
+future = FALSE
+silent = TRUE
+seed = 1
+save_model = NULL
+stan_model_args = list()
+save_dso = TRUE
+file = NULL 
+
+  
+  # validate arguments later passed to Stan
+  dots <- list()
+  testmode <- isTRUE(dots$testmode)
+  dots$testmode <- NULL
+  algorithm <- "sampling"
+  silent <- brms:::as_one_logical(silent)
+  iter <- brms:::as_one_numeric(iter)
+  warmup <- brms:::as_one_numeric(warmup)
+  thin <- brms:::as_one_numeric(thin)
+  chains <- brms:::as_one_numeric(chains)
+  cores <- brms:::as_one_numeric(cores)
+  future <- brms:::as_one_logical(future) && chains > 0L
+  seed <- brms:::as_one_numeric(seed, allow_na = TRUE)
+  if (is.character(inits) && !inits %in% c("random", "0")) {
+    inits <- get(inits, mode = "function", envir = parent.frame())
+  }
+  
+  if (is.brmsfit(fit)) {
+    # re-use existing model
+    x <- fit
+    icnames <- c("loo", "waic", "kfold", "R2", "marglik")
+    x[icnames] <- list(NULL)
+    sdata <- standata(x)
+    x$fit <- rstan::get_stanmodel(x$fit)
+  } else {  
+    # build new model
+    formula <- brms:::validate_formula(
+      formula, data = data, family = family, 
+      autocor = autocor, sparse = sparse
+    )
+    family <- brms:::get_element(formula, "family")
+    bterms <- parse_bf(formula)
+    data.name <- brms:::substitute_name(data)
+    #data <- validate_data(data, bterms = bterms)
+    #data2 <- validate_data2(
+      #data2, bterms = bterms, 
+      #brms:::get_data2_autocor(formula)
+    #)
+    prior <- brms:::check_prior(
+      prior, formula = formula, data = data,
+      sample_prior = sample_prior, warn = FALSE
+    )
+    # initialize S3 object
+    x <- brms:::brmsfit(
+      formula = formula, family = family, data = data, 
+      data.name = data.name, prior = prior, 
+      cov_ranef = cov_ranef, stanvars = stanvars, 
+      stan_funs = stan_funs, algorithm = algorithm
+    )
+    x$ranef <- brms:::tidy_ranef(bterms, data = x$data)  
+    x$exclude <- brms:::exclude_pars(
+      x, save_ranef = save_ranef, 
+      save_mevars = save_mevars,
+      save_all_pars = save_all_pars
+    )
+    # x$model <- make_stancode(
+    #   formula, data = data, prior = prior, 
+    #   cov_ranef = cov_ranef, sample_prior = sample_prior, 
+    #   knots = knots, stanvars = stanvars, stan_funs = stan_funs, 
+    #   save_model = save_model
+    # )
+    x$model <- stancode2
+    # generate Stan data before compiling the model to avoid
+    # unnecessary compilations in case of invalid data
+    # sdata <- make_standata(
+    #   formula, data = data, prior = prior, data2 = data2,
+    #   cov_ranef = cov_ranef, sample_prior = sample_prior,
+    #   knots = knots, stanvars = stanvars
+    # )
+    sdata <- standata2
+    stopifnot(is.list(stan_model_args))
+    silence_stan_model <- !length(stan_model_args)
+    stan_model_args$model_code <- x$model
+    # if (!isTRUE(save_dso)) {
+    #   warning2("'save_dso' is deprecated. Please use 'stan_model_args'.")
+    #   stan_model_args$save_dso <- save_dso
+    # }
+    message("Compiling the C++ model")
+    x$code <- brms:::eval_silent(
+      do_call(rstan::stan_model, stan_model_args),
+      silent = silence_stan_model, type = "message"
+    )
+  }
+  
+  args <- brms:::nlist(
+    object = x$fit, data = sdata, pars = x$exclude, 
+    include = FALSE, algorithm, iter, seed
+  )
+  args[names(dots)] <- dots
+  message("Start sampling")
+  #args$algorithm <- "sampling"
+  if (args$algorithm == "sampling") {
+    args$algorithm <- NULL
+    c(args) <- brms:::nlist(
+      init = inits, warmup, thin, control, 
+      show_messages = !silent
+    )
+    # if (future) {
+    #   if (cores > 1L) {
+    #     brms:::warning2("Argument 'cores' is ignored when using 'future'.")
+    #   }
+    #   args$chains <- 1L
+    #   futures <- fits <- vector("list", chains)
+    #   for (i in seq_len(chains)) {
+    #     args$chain_id <- i
+    #     if (is.list(inits)) {
+    #       args$init <- inits[i]
+    #     }
+    #     futures[[i]] <- future::future(
+    #       brms::do_call(rstan::sampling, args), 
+    #       packages = "rstan"
+    #     )
+    #   }
+    #   for (i in seq_len(chains)) {
+    #     fits[[i]] <- future::value(futures[[i]]) 
+    #   }
+    #   x$fit <- rstan::sflist2stanfit(fits)
+    #   rm(futures, fits)
+    # } else {
+    args <- brms:::nlist(chains, cores)
+    args <- brms:::nlist(
+      object = x$fit, data = sdata, pars = x$exclude, 
+      include = FALSE, algorithm, iter, seed
+    )
+    # need to recompile to overwrite x$fit 
+    args$algorithm <- "NUTS"
+      x$fit <- rstan::sampling(object = x$code, data = sdata, iter = 1000, seed = 1, chains = 2)
+      
+      me <- marginal_smooths(x, nsamples = 200, spaghetti = TRUE, nug = 0.1)
+      plot(me)
+    
+
+  if (!testmode) {
+    x <- rename_pars(x)
+  }
+  if (!is.null(file)) {
+    write_brmsfit(x, file)
+  }
+  x
+                }

@@ -4,7 +4,6 @@
 functions {
 
 
-
   /* compute a latent Gaussian process
    * Args:
    *   x: array of continuous predictor values
