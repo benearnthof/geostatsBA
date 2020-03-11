@@ -3,7 +3,7 @@
 
 functions {
 
-
+  matrix gp_exponential_cov(vector[] x, real sdgp, real lscale);
   /* compute a latent Gaussian process
    * Args:
    *   x: array of continuous predictor values
@@ -13,20 +13,20 @@ functions {
    * Returns:  
    *   a vector to be added to the linear predictor
    */ 
-  vector gp(vector[] x, real sdgp, vector lscale, vector zgp) { 
-    int Dls = rows(lscale);
+  vector gp(vector[] x, real sdgp, real lscale, vector zgp) { 
+    //int Dls = rows(lscale);
     int N = size(x);
     matrix[N, N] cov;
-    if (Dls == 1) {
+    //if (Dls == 1) {
       // one dimensional or isotropic GP
-      cov = gp_exponential_cov(x, sdgp, lscale[1]);
-    } else {
+      cov = gp_exponential_cov(x, sdgp, lscale);
+    //} else {
       // multi-dimensional non-isotropic GP
-      cov = gp_exponential_cov(x[, 1], sdgp, lscale[1]);
-      for (d in 2:Dls) {
-        cov = cov .* gp_exponential_cov(x[, d], 1, lscale[d]);
-      }
-    }
+      //cov = gp_exponential_cov(x[, 1], sdgp, lscale);
+      //for (d in 2:Dls) {
+        //cov = cov .* gp_exponential_cov(x[, d], 1, lscale[d]);
+      //}
+   // }
     for (n in 1:N) {
       // deal with numerical non-positive-definiteness
       cov[n, n] += 1e-12;
