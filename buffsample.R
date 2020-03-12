@@ -178,6 +178,7 @@ pdatagam <- predict(predictors, fit, type = "response")
 plot(pdatagam)
 
 ## gp spline default range
+set.seed(1)
 gp <- gam(site ~ s(lon, lat , bs="gp") + dem + temp + rain + 
                 distance_water + frostdays + sunhours + tpi + slope + as.factor(aspect), 
               family = binomial, 
@@ -194,16 +195,22 @@ fit <- brm(site ~ s(lon, lat) + dem + temp + rain +
                         max_treedepth=13))
 
 summary(fit)
-ms_fit <- marginal_smooths(fit)
+ms_fit <- conditional_smooths(fit)
 plot(ms_fit)
 
-testevidence2 <- sample_n(evidence, 50, replace = FALSE)
+testevidence2 <- sample_n(evidence, 1000, replace = FALSE)
 fit2 <- brm(site ~ gp(lon, lat) + dem + temp + rain + 
               distance_water + frostdays + sunhours + tpi + slope,
             family = bernoulli, data = testevidence2, 
             chains = 2, cores = 2, iter = 1000, 
             control = list(adapt_delta = 0.8, 
                            max_treedepth = 13))
+
+# Chain 2: Gradient evaluation took 206.227 seconds
+# Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 2.06227e+06 seconds.
+# 23 Days may be a problem
+
+# with 1000 data points 1000 transitions using 10 steps each takes about 3000 seconds
 
 plot(fit2)
 
