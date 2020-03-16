@@ -1,28 +1,23 @@
 // generated with brms 2.12.0
 functions {
 
-//  matrix gp_matern32_cov(vector[] x, real sigma, real length_scale) {
-//
-//    real sigma_sq = square(sigma);
-//    real root_3 = sqrt(3.0);
-//    matrix [size(x), size(x)] cov;
-//
-//    vector[size(x)] x_new;
-  
-    //for (i in 1:size(x)) {
-//      x_new = (x ./ length_scale);
-    //}
+matrix gp_matern32_cov(vector[] x, real sigma, real length_scale) {
+  real sigma_sq = square(sigma);
+  real root_3 = sqrt(3.0);
+  matrix [size(x), size(x)] cov;
+  vector[size(x)] x_new;
 
-//    for (i in 1:size(x_new)) {
-//      for (j in 1:size(x_new)) {
-//        real dist = distance(x_new[i], x_new[j]);
-//        cov[i, j] = sigma_sq * (1.0 + root_3 * dist) * exp(-root_3 * dist);
-//        cov[j, i] = cov[i, j];
-//      }
-//    }
-//    return cov;
-//  }
+   for (i in 1:size(x)) {
+     for (j in 1:size(x)) {
+       real dist = distance(x[i]/length_scale, x[j]/length_scale);
+       cov[i, j] = sigma_sq * (1.0 + root_3 * dist) * exp(-root_3 * dist);
+       cov[j, i] = cov[i, j];
+     }
+   }
+   return cov;
+ }
 
+}
 
   /* compute a latent Gaussian process
    * Args:
