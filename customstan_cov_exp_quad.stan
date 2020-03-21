@@ -1,14 +1,14 @@
-//lets try swapping out the covariance function for an equivalent 
+//lets try swapping out the covariance function for an equivalent 2d case
 data {
-  int<lower=1> N1;
-  real x1[N1];
-  vector[N1] y1;
-  int<lower=1> N2;
-  real x2[N2];
+  int<lower=1> N1; //number of cases
+  real x1[N1]; //x1 coordinate
+  vector[N1] y1; //observations
+  int<lower=1> N2; //number of cases
+  real x2[N2]; //x2 coordinate
 }
 transformed data {
   real delta = 1e-9;
-  int<lower=1> N = N1 + N2;
+  int<lower=1> N = N1 + N2; //transforming data to predict new data
   real x[N];
   for (n1 in 1:N1) x[n1] = x1[n1];
   for (n2 in 1:N2) x[N1 + n2] = x2[n2];
@@ -48,9 +48,9 @@ transformed parameters {
     }
     
     // making sure matrix is positive definite for cholesky
-    for (n in 1:N)
+    for (n in 1:N) {
       K[n, n] = K[n, n] + delta;
-
+    }
     L_K = cholesky_decompose(K);
     f = L_K * eta;
   }
