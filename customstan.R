@@ -127,7 +127,9 @@ z <- preds[,1]
 mat <- matrix(z, nrow = 40, ncol = 40)
 image(x1, x2, mat)
 plot(getViz(m1))
+# seems to have roughly the same shape
 
+# trying to replicate the 2d gp behavior of brms by calculating the covariance manually
 stancode_2d <- make_stancode(y ~ gp(x1, x2), data = dat, 
                              chains = 2, cores = 2, iter = 400)
 standata_2d <- make_standata(y ~ gp(x1, x2), data = dat, 
@@ -135,10 +137,20 @@ standata_2d <- make_standata(y ~ gp(x1, x2), data = dat,
 # lets take a look at the 2d stancode
 stancode_2d
 
+b2d <- stan(file = "customstan_2d_exp_quad.stan",
+           data = standata_2d,
+           iter = 400, chains = 2, cores = 2)
 
+summary(b2d)
 
+b2d_extract <- extract(b2d)
+plot(b2d)
 
-# seems to have roughly the same shape
+test <- b1
+test$fit <- b2d
+
+preds <- predict(test, newdata = newdata, nsamples = 10)
+
 
 # # trying out custom covariance function
 # b3 <- stan(file="customstan_matern32_predict.stan", 
