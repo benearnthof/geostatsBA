@@ -12,6 +12,7 @@ data {
   int prior_only;  // should the likelihood be ignored?
 }
 transformed data {
+  real delta = 1e-9; // delta for positive definite covariance matrix
 }
 
 /*parameters {
@@ -77,41 +78,54 @@ transformed parameters {
       }
       for (d in 2:Dls) {
         // cov = cov .* cov_exp_quad(x[, d], 1, lscale[d]);
-        
+        // do everything again, try to wrap in function later
+        matrix[Nnew, Nnew] cov_tmp; 
+        for (i in 1:Nnew) {
+          cov_tmp[i, i] = sdgp_1[1] * sdgp_1[1];
+        }
+        // loop for cov_tmp
+        for (i in 1:Nnew) {
+          for (j in (i+1):Nnew) {
+            real sq_alpha = sdgp_1[1] * sdgp_1[1]; //square alpha
+            real sq_dist = (Xgp_1[i,d] - Xgp_1[j,d]) *  (Xgp_1[i,d] - Xgp_1[j,d]);
+            // technically need lscale_1[1,d] here but we only have one gp and one lscale
+            cov_tmp[i,j] = sq_alpha * exp(-(sq_dist/(lscale_1[1,1] * lscale_1[1,1]))); //squared exponential cov
+            cov_tmp[j,i] = cov[i, j]; //symmetric matrix
+          }
+        }
+        cov = cov .* cov_tmp;
       }
-    
-    //diagonal elements
-    /*for (i in 1:N) {
-      K[i, i] = alpha * alpha;
     }
-    for (i in 1:N) {
-      for (j in (i+1):N) {
-        real sq_alpha = alpha * alpha; //square alpha
-        real sq_dist = (x[i] - x[j]) * (x[i] - x[j]); //squared euclidian dist
-        K[i,j] = sq_alpha * exp(-(sq_dist/(rho * rho))); //squared exponential cov
-        K[j,i] = K[i, j]; //symmetric matrix
-      }
-    }
-    */
-    
     // making sure matrix is positive definite for cholesky
     for (n in 1:N) {
-      K[n, n] = K[n, n] + delta;
+      cov[n, n] = cov[n, n] + delta;
     }
-    chol = cholesky_decompose(K);
+    chol = cholesky_decompose(cov);
     f = chol * zgp_1;
   }
 }
 model {
-  lscale_1 ~ inv_gamma(5, 5);
+  // initialize linear predictor term
+  // gp returns product of chol and zgp_1 
+  // vector[N] mu = Intercept + rep_vector(0, N) + gp(Xgp_1, sdgp_1[1], lscale_1[1], zgp_1);
+  vector[N] mu = Intercept + rep_vector(0, N) + f;
+  // priors including all constants
+  target += student_t_lpdf(Intercept | 3, 7, 10);
+  target += student_t_lpdf(sdgp_1 | 3, 0, 10) - 1 * student_t_lccdf(0 | 3, 0, 10);
+  target += normal_lpdf(zgp_1 | 0, 1);
+  target += inv_gamma_lpdf(lscale_1[1] | 1.089792, 0.015279);
+  target += student_t_lpdf(sigma | 3, 0, 10) - 1 * student_t_lccdf(0 | 3, 0, 10);
+  // likelihood including all constants
+  if (!prior_only) {
+    target += normal_lpdf(Y | mu, sigma);
+  }
+  /*lscale_1[1] ~ inv_gamma(1.089792, 0.015279);
   sdgp_1 ~ std_normal();
   sigma ~ std_normal();
-  zgp_1 ~ std_normal();
-
-  y1 ~ normal(f[1:N1], sigma);
+  zgp_1 ~ std_normal(); */ 
+  //Y ~ normal(f[1:N1], sigma);
 }
 generated quantities {
-  vector[N2] y2;
-  for (n2 in 1:N2)
-    y2[n2] = normal_rng(f[N1 + n2], sigma);
+  // actual population-level intercept
+  real b_Intercept = Intercept;
 }
