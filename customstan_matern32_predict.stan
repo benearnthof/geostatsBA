@@ -1,4 +1,6 @@
 //function block must appear before all other blocks
+//function calling does not work because of mistyped variables
+//lets try calculating the matrix directly in the transformed data block
 /*
  functions {
   matrix gp_matern32_cov(real[] x, real alpha, real rho) {
