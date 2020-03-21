@@ -94,6 +94,10 @@ points(y_new~newdata, col = "red", add = TRUE)
 
 # trying 2 dimensional case
 
+library(mgcv)
+library(mgcViz)
+library(brms)
+
 set.seed(1)
 dat <- gamSim(1, n = 150)
 m1 <- gam(y ~ s(x1, x2, bs = "gp", m = 2), data = dat) # power exponential
@@ -102,14 +106,39 @@ plot(getViz(m1))
 
 b1 <- brm(y ~ gp(x1, x2), data = dat, 
           chains = 2, cores = 2, iter = 400) # uses power exponential by default
+# 150 seconds for 1000 transitions using 10 steps
+summary(b1)
+plot(b1)
+
+# saving and loading due to frequent RSession crashes
+saveRDS(b1, "b1_customstan.RDS")
+b1 <- readRDS("b1_customstan.RDS")
+
+x1 <- seq(from = 0.01, to = 1, by = 0.025)
+x2 <- seq(from = 0.01, to = 1, by = 0.025)
+newdata <- expand.grid(x1, x2)
+colnames(newdata) <- c("x1", "x2")
+head(newdata)
+
+preds <- predict(b1, newdata = newdata, nsamples = 10)
+# takes like 10 seconds
+z <- preds[,1]
+
+mat <- matrix(z, nrow = 40, ncol = 40)
+image(x1, x2, mat)
+plot(getViz(m1))
+
+stancode_2d <- make_stancode(y ~ gp(x1, x2), data = dat, 
+                             chains = 2, cores = 2, iter = 400)
+standata_2d <- make_standata(y ~ gp(x1, x2), data = dat, 
+                             chains = 2, cores = 2, iter = 400)
+# lets take a look at the 2d stancode
+stancode_2d
 
 
 
 
-
-
-
-
+# seems to have roughly the same shape
 
 # # trying out custom covariance function
 # b3 <- stan(file="customstan_matern32_predict.stan", 
