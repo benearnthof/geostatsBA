@@ -137,6 +137,7 @@ standata_2d <- make_standata(y ~ gp(x1, x2), data = dat,
 # lets take a look at the 2d stancode
 stancode_2d
 
+# included term to return generated mu values
 b2d <- stan(file = "customstan_2d_exp_quad.stan",
            data = standata_2d,
            iter = 400, chains = 2, cores = 2)
@@ -145,11 +146,76 @@ summary(b2d)
 
 b2d_extract <- extract(b2d)
 plot(b2d)
+mu_gen <- b2d_extract$mu_generated
+# 150 point pairs generated 150 different distributions
+mu_means <- colMeans(mu_gen)
 
-test <- b1
-test$fit <- b2d
+mapdata <- data.frame(x1 = dat$x1, x2 = dat$x2, y = mu_means)
 
-preds <- predict(test, newdata = newdata, nsamples = 10)
+ggplot(data = dat, aes(x = x1, y = x2, col = y)) +
+  geom_point() +
+  scale_color_gradient(low = "yellow", high = "red")
+
+ggplot(data = mapdata, aes(x = x1, y = x2, col = y)) +
+  geom_point() +
+  scale_color_gradient(low = "yellow", high = "red")
+# something is wrong
+# running model generated from brms, with same data generation process
+test_datagen <- stan(file = "stancode_2d.stan",
+            data = standata_2d,
+            iter = 400, chains = 2, cores = 2)
+
+test_extract <- extract(test_datagen)
+mu_gen2 <- test_extract$mu_generated
+str(mu_gen2) # same structure
+mu_means2 <- colMeans(mu_gen2)
+mapdata2 <- data.frame(x1 = dat$x1, x2 = dat$x2, y = mu_means2)
+
+ggplot(data = mapdata2, aes(x = x1, y = x2, col = y)) +
+  geom_point() +
+  scale_color_gradient(low = "yellow", high = "red") +
+  ggtitle("BRMS 1")
+
+# the brms version seems consistent. 
+# lets try to remove the spectral density stuff for clarity
+test_datagen_nospectral <- stan(file = "stancode_2d_nospectral.stan",
+                     data = standata_2d,
+                     iter = 400, chains = 2, cores = 2)
+
+nospectral_extract <- extract(test_datagen_nospectral)
+mu_gen3 <- nospectral_extract$mu_generated
+mu_means3 <- colMeans(mu_gen3)
+mapdata3 <- data.frame(x1 = dat$x1, x2 = dat$x2, y = mu_means3)
+
+ggplot(data = mapdata3, aes(x = x1, y = x2, col = y)) +
+  geom_point() +
+  scale_color_gradient(low = "yellow", high = "red") +
+  ggtitle("BRMS 2: No Spectral")
+
+# we need to include the points at which to predict from the model in the stan data
+str(standata_2d)
+
+# trying out custom covariance function
+test_datagen_nospectral_custom <- stan(file = "stancode_2d_nospectral_custom.stan",
+                                data = standata_2d,
+                                iter = 400, chains = 2, cores = 2)
+
+extra <- extract(test_datagen_nospectral_custom)
+mu_gen4 <- extra$mu_generated
+mu_means4 <- colMeans(mu_gen4)
+mapdata4 <- data.frame(x1 = dat$x1, x2 = dat$x2, y = mu_means4)
+
+all.equal(mapdata3, mapdata4) # good
+
+ggplot(data = mapdata4, aes(x = x1, y = x2, col = y)) +
+  geom_point() +
+  scale_color_gradient(low = "yellow", high = "red") +
+  ggtitle("BRMS 3: Custom Cov.")
+# the stan code compiles, lets see if we can swap out the covariance functions.
+test_datagen_nospectral_custom_2 <- stan(file = "stancode_2d_nospectral_custom.stan",
+                                       data = standata_2d,
+                                       iter = 400, chains = 1, cores = 1)
+
 
 
 # # trying out custom covariance function

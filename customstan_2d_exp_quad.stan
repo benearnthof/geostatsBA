@@ -128,4 +128,5 @@ model {
 generated quantities {
   // actual population-level intercept
   real b_Intercept = Intercept;
+  vector[N] mu_generated = Intercept + rep_vector(0, N) + f;
 }
