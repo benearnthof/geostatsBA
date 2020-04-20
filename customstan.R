@@ -215,8 +215,14 @@ ggplot(data = mapdata4, aes(x = x1, y = x2, col = y)) +
 test_datagen_nospectral_custom_2 <- stan(file = "stancode_2d_nospectral_custom.stan",
                                        data = standata_2d,
                                        iter = 400, chains = 1, cores = 1)
+# does not work
 
+test <- stan_model(file = "test.stan", allow_undefined = TRUE,
+                   includes = paste0('\n#include "', 
+                                     file.path(getwd(), 'gp_matern52_cov.hpp'), '"\n'))
 
+# we need to use cmdstan for custom functions or fix the weird as heck array accessing
+# does not work
 
 # # trying out custom covariance function
 # b3 <- stan(file="customstan_matern32_predict.stan", 
@@ -230,3 +236,11 @@ test_datagen_nospectral_custom_2 <- stan(file = "stancode_2d_nospectral_custom.s
 # plot(m3)
 # # asdf <- predict(m1, newdata = data.frame(x2 = newdata))
 # # plot(asdf~newdata)
+
+# installing cmdstanr to use covariance functions
+devtools::install_github("stan-dev/cmdstanr")
+library(cmdstanr)
+# requires working version of cmdstan
+install_cmdstan()
+# verify that version can be found
+cmdstan_version()

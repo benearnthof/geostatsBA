@@ -18,16 +18,16 @@ functions {
     }
     return(cov);
   } */ 
-  matrix gp_matern52_func(real[] x, real sigma, real length_scale) {
-    matrix[size(x), size(x)] cov;
+   matrix gp_matern52_cov(vector x, real sigma, real length_scale) {
+    matrix[cols(x), cols(x)] cov;
 
     real sigma_sq = sigma^2;
     real root_5_inv_l = sqrt(5.0) / length_scale;
     real inv_l_sq_5_3 = 5.0 / (3.0 * length_scale^2);
 
-    for (i in 1:size(x)) {
+    for (i in 1:cols(x)) {
       cov[i, i] = sigma_sq;
-        for (j in (i + 1):size(x)) {
+        for (j in (i + 1):cols(x)) {
         real sq_distance = (x[i] - x[j])^2;
         real dist = sqrt(sq_distance);
         cov[i, j] = sigma_sq
@@ -37,7 +37,7 @@ functions {
       }
     }
     return(cov);
-  }
+  }  
   
   /* compute a latent Gaussian process
    * Args:
@@ -56,16 +56,17 @@ functions {
       // one dimensional or isotropic GP
       // cov = cov_exp_quad(x, sdgp, lscale[1]);
       // cov = cov_custom(to_vector(x[, 1]) , sdgp, lscale[1]);
-      cov = gp_matern52_func(x, sdgp, lscale);
+      // cannot hand over an array here needs to be vector
+      cov = gp_matern52_cov(x, sdgp, lscale[1]);
     } else {
       // multi-dimensional non-isotropic GP
       // cov = cov_exp_quad(x[, 1], sdgp, lscale[1]);
       // cov = cov_custom(to_vector(x[, 1]), sdgp, lscale[1]);
-      cov = gp_matern52_func(x[, 1], sdgp, lscale[1]);
+      cov = gp_matern52_cov(x[, 1], sdgp, lscale[1]);
       for (d in 2:Dls) {
         // cov = cov .* cov_exp_quad(x[, d], 1, lscale[d]);
         // cov = cov .* cov_custom(to_vector(x[, d]), 1, lscale[d]);
-        cov = gp_matern52_func(x[, d], sdgp, lscale[d]);
+        cov = cov .* gp_matern52_cov(x[, d], sdgp, lscale[d]);
       }
     }
     for (n in 1:N) {
@@ -120,5 +121,5 @@ model {
 generated quantities {
   // actual population-level intercept
   real b_Intercept = Intercept;
-   vector[N] mu_generated = Intercept + rep_vector(0, N) + gp(Xgp_1, sdgp_1[1], lscale_1[1], zgp_1);
+  vector[N] mu_generated = Intercept + rep_vector(0, N) + gp(Xgp_1, sdgp_1[1], lscale_1[1], zgp_1);
 }

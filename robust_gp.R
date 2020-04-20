@@ -167,3 +167,52 @@ dgp_fit <- stan(file='simu_gauss_dgp.stan', data=f_data, iter=1000, warmup=0,
 
 plot_gp_pred_quantiles(dgp_fit, data, true_realization,
                        "True Data Generating Process Quantiles")
+
+lon <- seq(from = 9, to = 13.9, length.out = 100)
+lat <- seq(from = 47.3, to = 50.6, length.out = 100)
+
+newdata <- expand.grid(lon, lat)
+colnames(newdata) <- c("lon", "lat")
+
+# data {
+#   int<lower=1> N;  // number of observations
+#   // number of sub-GPs (equal to 1 unless 'by' was used)
+#   int<lower=1> Kgp_1;
+#   int<lower=1> Dgp_1;  // GP dimension
+#   real<lower=0> sdgp_1;
+#   real<lower=0> lscale_1;
+#   // covariates of the GP
+#   vector[Dgp_1] Xgp_1[N];
+# }
+
+simu_data <- list(
+  N = nrow(newdata),
+  Kgp_1 = as.integer(1),
+  Dgp_1 = as.integer(2), 
+  sdgp_1 = as.double(2.90),
+  lscale_1 = as.double(0.04),
+  Xgp_1 = as.matrix.data.frame(newdata),
+  Intercept = -0.94
+)
+library(rstan)
+simu_fit <- stan(file = "predictions.stan",
+                 data=simu_data, 
+                 iter=10,
+                 chains=1, 
+                 seed=1, 
+                 algorithm="Fixed_param")
+saveRDS(simu_fit, file = "simufit.RDS")
+# seems to have worked
+
+preds <- extract(simu_fit)$y
+
+preds_f <- extract(simu_fit)$f
+
+pred <- colMeans(preds_f)
+newdata_2 <- as.data.frame.matrix(newdata)
+newdata_2$z <- pred
+
+rast <- newdata_2
+colnames(rast) <- c("x", "y", "z")
+rast <- raster::rasterFromXYZ(rast, crs="+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs", digits=5)
+plot(rast)
