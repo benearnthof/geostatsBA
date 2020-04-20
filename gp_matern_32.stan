@@ -1,23 +1,22 @@
 // generated with brms 2.12.0
 functions {
 
-matrix gp_matern32_cov(vector[] x, real sigma, real length_scale) {
-  real sigma_sq = square(sigma);
-  real root_3 = sqrt(3.0);
-  matrix [size(x), size(x)] cov;
-  vector[size(x)] x_new;
+  matrix gp_matern32_cov(vector[] x, real sigma, real length_scale) {
+
+    real sigma_sq = square(sigma);
+    real root_3 = sqrt(3.0);
+    matrix [size(x), size(x)] cov;
 
    for (i in 1:size(x)) {
      for (j in 1:size(x)) {
-       real dist = distance(x[i]/length_scale, x[j]/length_scale);
-       cov[i, j] = sigma_sq * (1.0 + root_3 * dist) * exp(-root_3 * dist);
+       real dist = distance(x[i], x[j]);
+       cov[i, j] = sigma_sq * (1.0 + (root_3 * dist)/length_scale ) * exp(-(root_3 * dist)/length_scale);
        cov[j, i] = cov[i, j];
      }
    }
    return cov;
  }
 
-}
 
   /* compute a latent Gaussian process
    * Args:
@@ -29,19 +28,19 @@ matrix gp_matern32_cov(vector[] x, real sigma, real length_scale) {
    *   a vector to be added to the linear predictor
    */ 
   vector gp(vector[] x, real sdgp, vector lscale, vector zgp) { 
-    int Dls = rows(lscale);
+    //int Dls = rows(lscale);
     int N = size(x);
     matrix[N, N] cov;
-    if (Dls == 1) {
+    //if (Dls == 1) {
       // one dimensional or isotropic GP
       cov = gp_matern32_cov(x, sdgp, lscale[1]);
-    } else {
+    //} else {
       // multi-dimensional non-isotropic GP
-      cov = gp_matern32_cov(x[, 1], sdgp, lscale[1]);
-      for (d in 2:Dls) {
-        cov = cov .* gp_matern32_cov(x[, d], 1, lscale[d]);
-      }
-    }
+      //cov = gp_matern32_cov(x[, 1], sdgp, lscale[1]);
+      //for (d in 2:Dls) {
+        //cov = cov .* gp_matern32_cov(x[, d], 1, lscale[d]);
+      //}
+    //}
     for (n in 1:N) {
       // deal with numerical non-positive-definiteness
       cov[n, n] += 1e-12;

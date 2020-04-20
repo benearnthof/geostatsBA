@@ -21,3 +21,6 @@ brm_custom_1d <- rstan::stan_model("gp_matern_32.stan",
                                    allow_undefined = TRUE,
                                    includes = paste0('\n#include "', file.path(getwd(),'gp_matern_32_cov.hpp'), '"\n'))
 
+brm_custom_1d <- rstan::stan_model("gp_matern_32.stan")
+
+brm_custom <- rstan::sampling(brm_custom_1d, data = standata)
