@@ -16,6 +16,10 @@ gp_1000 <- brms::brm(site ~ gp(lon, lat), data = evd,
                                  max_treedepth = 13))
 
 # longest gradient evaluation for 1000 steps: 2999.72 seconds
-
+# longest sampling time for single chain
+# Chain 3:  Elapsed Time: 8753.02 seconds (Warm-up)
+# Chain 3:                3365.59 seconds (Sampling)
+# Chain 3:                12118.6 seconds (Total)
 # dont forget to save this one
 saveRDS(gp_1000, "gp_1000.RDS")
+

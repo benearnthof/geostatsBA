@@ -197,3 +197,27 @@ fit <- mod$sample(
   num_samples = 400,
   num_warmup = 200
 )
+
+set.seed(1)
+evd <- evidence[sample(nrow(evidence), size = 500),]
+standata <- brms::make_standata(site ~ gp(lon, lat), data = evd,
+                                family = bernoulli)
+
+file <- paste0(getwd(), "/cmdstan_matern32.stan")
+mod <- cmdstan_model(file)
+
+data_mod <- list()
+
+for (i in 1:length(standata)) {
+  data_mod[[i]] <- standata[[i]]
+}
+names(data_mod) <- names(standata)
+
+fit <- mod$sample(
+  data = data_mod, 
+  seed = 123, 
+  num_chains = 4, 
+  num_cores = 4,
+  num_samples = 400,
+  num_warmup = 200
+)
