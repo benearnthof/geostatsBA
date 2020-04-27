@@ -57,7 +57,7 @@ calcSigma <- function(X1, X2, l = 1, type = c("exp", "matern")) {
 # as shown in Figure 2.2(a)
 
 # Define the points at which we want to define the functions
-x.star <- seq(-5, 5, len = 100)
+x.star <- seq(-5, 5, len = 300)
 
 # Calculate the covariance matrix
 sigma <- calcSigma(x.star, x.star, type = "matern5")
@@ -77,10 +77,11 @@ values <- melt(values, id = "x")
 # Plot the result
 fig2a <- ggplot(values, aes(x = x, y = value)) +
   #geom_rect(xmin = -Inf, xmax = Inf, ymin = -3, ymax = 3, fill = "grey90") +
-  geom_line(aes(group = variable, color = variable)) +
+  geom_line(aes(group = variable, color = variable), size = 0.7) +
   theme_bw() +
-  scale_y_continuous(lim = c(-3, 3), name = "output, f(x)") +
-  xlab("input, x")
+  scale_y_continuous(lim = c(-3, 3), name = "f(x)") +
+  xlab("x") +
+  theme(legend.position = "none")
 
 fig2a
 
@@ -123,13 +124,13 @@ values <- melt(values, id = "x")
 # and constraining data points
 hardxd <- data.frame(x.star, f.star.bar)
 fig2b <- ggplot(values, aes(x = x, y = value)) +
-  geom_line(aes(group = variable), colour = "black", alpha = 0.35) +
+  geom_line(aes(group = variable), colour = "black", alpha = 0.4, size = 0.7) +
   geom_line(data = hardxd, aes(x = x.star, y = f.star.bar), colour = "red") +
   geom_point(data = f, aes(x = x, y = y)) +
   theme_bw() +
-  scale_y_continuous(lim = c(-4, 4), name = "Output, f(x)") +
+  scale_y_continuous(lim = c(-4, 4), name = "f(x)") +
   scale_x_continuous(lim = c(-5, 5)) +
-  xlab("Input, x")
+  xlab("x")
 
 fig2b
 
