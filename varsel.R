@@ -120,7 +120,7 @@ remltime <- system.time(gam(site ~ s(lon, lat, bs = "gp", m = 3), data = evidenc
                             family = binomial, method = "REML"))
 
 wot2 <- gam(site ~ s(lon, lat), data = evidence,
-                   family = binomial, method = "REML")
+            family = binomial, method = "REML")
 plot(getViz(wot2))
 wot3 <- gam(site ~ s(lon, lat, bs = "tp"), data = evidence,
             family = binomial)
@@ -181,20 +181,21 @@ resample_covs <- function(times = 100, evd = evidence) {
     # doing modeling
     models <- list()
     for (j in 1:5) {
-      models[[j]] <- gam(site ~ s(lon, lat, bs = "gp", m = j),
-                     family = binomial, data = train, method = "REML")
+      models[[j]] <- gam(site ~ s(lon, lat, bs = "gp", m = j) + s(dem) + temp + s(rain) + 
+                           distance_water + sunhours + s(tpi) + slope,
+                         family = binomial, data = evidence, select = TRUE, method = "REML")
     }
-
+    
     predvals <- purrr::map(models, predict, type = "response", newdata = test)
-
+    
     performances <- list()
     for (k in 1:length(predvals)) {
       performances[[k]] <- suppressMessages(roc(test$site, predvals[[k]]))
     }
-
+    
     perfs <- purrr::map(performances, `[[`, 9)
     perfs <- purrr::map(perfs, `[`, 1)
-
+    
     perfs <- unlist(perfs)
     
     results[i, ] <- perfs
@@ -203,27 +204,17 @@ resample_covs <- function(times = 100, evd = evidence) {
   return(results)
 }
 
-cov_resamp_results <- resample_covs(times = 5, evd = evd)
-colnames(cov_resamp_results) <- c("Spherical", "Exponential", "Matern 1/2", "Matern 3/2", "Matern 5/2")
-mlt <- reshape2::melt(cov_resamp_results)
-saveRDS(cov_resamp_results, file = "cov_resamp_results.RDS")
-library(ggplot2)
-ggplot(mlt, aes(y = value, x = Var2, group = Var2)) +
-  geom_boxplot() +
-  scale_y_continuous(breaks = seq(from = 0.75, to = 0.85, by = 0.01),
-                     limits = c(0.78, 0.85)) +
-  theme_bw() +
-  theme(text = element_text(size = 16)) +
-  xlab("Covariance Function") +
-  ylab("Area under ROC")
+cov_resamp_results <- resample_covs(times = 100, evd = evd)
+saveRDS(cov_resamp_results, "cov_resamp_results.RDS")
+system.time(resample_covs(times = 1, evd = evd))
 
-colMeans(cov_resamp_results)
+
 
 library(mgcv)
 library(mgcViz)
 mod1 <- gam(site ~ s(lon, lat, bs = "gp", m = 2) + s(dem) + s(temp) + s(rain) + 
-                s(distance_water) + s(frostdays) + s(sunhours) + s(tpi) + s(slope),
-              family = binomial, data = evidence, select = TRUE, method = "REML")
+              s(distance_water) + s(frostdays) + s(sunhours) + s(tpi) + s(slope),
+            family = binomial, data = evidence, select = TRUE, method = "REML")
 
 # dem mostly exhibits linear structure 5 degrees of freedom
 # temp also almost linear, 3 degrees of freedom
