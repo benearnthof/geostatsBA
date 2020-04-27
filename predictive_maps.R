@@ -1,5 +1,5 @@
 # predictive maps
-model <- readRDS("b_expo_3000_nosmooths.RDS")
+model <- readRDS("b_expo_2000_iso.RDS")
 predictors <- stack(c(
   "Daten/dem.grd",
   "Daten/temp_raster.grd",
@@ -51,7 +51,7 @@ library(raster)
 rast <- rasterFromXYZ(rast, crs="+proj=utm +zone=32 +ellps=WGS84 +units=m +no_defs", digits=5)
 plot(rast)
 
-saveRDS(rast, file = "b_expo_3000_nosmooths_predictions50.RDS")
+saveRDS(rast, file = "b_expo_2000_iso_predictions50.RDS")
 
 library(rasterVis)
 library(RColorBrewer)

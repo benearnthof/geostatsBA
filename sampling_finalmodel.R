@@ -96,12 +96,12 @@ saveRDS(b_expo_12222, "final_expo_12222.RDS")
 
 
 
+set.seed(1)
+evd_1000 <- evidence[sample(nrow(evidence), size = 1000),]
 
-
-standata <- brms::make_standata(site ~ gp(lon, lat, k = 30, c = 5/4) + dem + temp + rain + 
-                        distance_water + sunhours + tpi + slope,
+standata <- brms::make_standata(site ~ gp(lon, lat),
                       family = bernoulli,
-                      data = evidence,
+                      data = evd_1000,
                       chains = 4, 
                       cores = 4, 
                       iter = 1000, 
@@ -174,7 +174,7 @@ stancode_matern52 <- brms::make_stancode(site ~ gp(lon, lat),
 
 # matern 32 without smooth terms
 set.seed(1)
-evd <- evidence[sample(nrow(evidence), size = 2000),]
+evd <- evidence[sample(nrow(evidence), size = 400),]
 stancode_matern32 <- brms::make_stancode(site ~ gp(lon, lat),
                                          family = bernoulli,
                                          data = evd,
@@ -208,15 +208,17 @@ b_matern32_1000_novariables <- mod$sample(
   seed = 123, 
   num_chains = 4, 
   num_cores = 4,
-  num_samples = 500,
-  num_warmup = 500,
+  num_samples = 200,
+  num_warmup = 200,
   adapt_delta = 0.8,
   max_depth = 12,
   refresh = 10
 )
 saveRDS(b_matern32_1000_novariables, file = "b_matern32_1000_novariables.RDS")
-b_matern32_1000_novariables$summary()
+b_matern32_1000_novariables$output_files()
 b_matern32_1000_novariables$cmdstan_diagnose()
+b_matern32_1000_novariables$summary()
+
 
 
 # doing another run without smooths and a fifth of the data
@@ -279,13 +281,18 @@ saveRDS(b_expo_3000_2, file = "b_expo_3000_nosmooths_2.RDS")
 
 
 set.seed(1)
-evd_5000 <- evidence[sample(nrow(evidence), size = 5000),]
-b_expo_5000_noniso <- brms::brm(site ~ gp(lon, lat, k = 30, c = 5/4, iso = FALSE),
+evd_2000 <- evidence[sample(nrow(evidence), size = 2000),]
+b_expo_2000_iso <- brms::brm(site ~ gp(lon, lat, k = 30, c = 5/4),
                            family = bernoulli,
-                           data = evd_5000,
+                           data = evd_2000,
                            chains = 4, 
                            cores = 4, 
                            iter = 1000, 
                            control = list(adapt_delta = 0.8, 
                                           max_treedepth = 12))
-saveRDS(b_expo_5000_noniso, file = "b_expo_5000_noniso.RDS")
+saveRDS(b_expo_2000_iso, file = "b_expo_2000_iso.RDS")
+
+
+
+saveRDS(b_matern32_1000_novariables, file = "bm321knovar.RDS") 
+b_matern32_1000_novariables$summary()
